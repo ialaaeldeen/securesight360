@@ -9,6 +9,7 @@ from app.scanners.website.availability_checker import (
 from app.scanners.website.dns_checker import DNSCheckResult, DNSChecker
 from app.scanners.website.header_checker import HeaderCheckResult, SecurityHeaderChecker
 from app.scanners.website.ssl_checker import SSLCheckResult, SSLChecker
+from app.scoring.risk_engine import RiskAssessment, assess_website_risk
 from app.utils.validators import extract_domain_from_url, validate_website_url
 
 
@@ -22,7 +23,9 @@ class WebsiteScannerResult:
     - HTTPS and SSL/TLS certificate status
     - Security headers
     - DNS records
-    - SPF, DMARC, and DKIM guidance
+    - SPF, DMARC, DKIM, and DNSSEC guidance
+    - Lightweight technology hints
+    - Explainable business-friendly risk assessment
     """
 
     original_url: str
@@ -32,6 +35,7 @@ class WebsiteScannerResult:
     headers: HeaderCheckResult
     dns: DNSCheckResult
     technologies_detected: dict[str, str | None] = field(default_factory=dict)
+    risk_assessment: RiskAssessment | None = None
 
 
 class WebsiteScanner:
@@ -41,6 +45,11 @@ class WebsiteScanner:
     This class combines multiple safe website security checks into one
     structured result. It does not perform exploitation, brute forcing,
     fuzzing, login testing, or intrusive vulnerability testing.
+
+    The orchestrator also runs the explainable CyberShield360 risk engine
+    after collecting scanner evidence. The risk engine converts technical
+    findings into a client-friendly score, grade, risk level, summary,
+    risk drivers, and priority actions.
     """
 
     def __init__(
@@ -57,7 +66,7 @@ class WebsiteScanner:
 
     def scan(self, target_url: str) -> WebsiteScannerResult:
         """
-        Run the complete safe website scan.
+        Run the complete safe website scan and attach an explainable risk assessment.
         """
 
         normalized_url = validate_website_url(target_url)
@@ -72,6 +81,21 @@ class WebsiteScanner:
             availability_result.raw_headers
         )
 
+        scanner_result_without_risk = WebsiteScannerResult(
+            original_url=normalized_url,
+            domain=domain,
+            availability=availability_result,
+            ssl=ssl_result,
+            headers=header_result,
+            dns=dns_result,
+            technologies_detected=technologies_detected,
+        )
+
+        risk_assessment = assess_website_risk(
+            scanner_result_without_risk,
+            target=normalized_url,
+        )
+
         return WebsiteScannerResult(
             original_url=normalized_url,
             domain=domain,
@@ -80,6 +104,7 @@ class WebsiteScanner:
             headers=header_result,
             dns=dns_result,
             technologies_detected=technologies_detected,
+            risk_assessment=risk_assessment,
         )
 
     @staticmethod

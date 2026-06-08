@@ -1,44 +1,71 @@
-from datetime import datetime, timezone
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter
 
 from app.core.config import settings
 
-router = APIRouter()
+router = APIRouter(prefix="/health", tags=["Health"])
+
+
+@router.get("")
+def health_check() -> dict[str, Any]:
+    """
+    Return the basic health status of the CyberShield360 backend.
+    """
+
+    return {
+        "status": "healthy",
+        "service": "CyberShield360 Backend",
+        "environment": _get_environment(),
+        "message": "CyberShield360 Backend is healthy.",
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
 
 
 @router.get("/")
-def health_check():
+def health_check_with_slash() -> dict[str, Any]:
     """
-    Health check endpoint.
+    Support both /health and /health/.
+    """
 
-    Used to confirm that the CyberShield360 backend is running correctly.
-    This endpoint can also be used later by Docker, monitoring tools,
-    or deployment platforms.
-    """
-    return {
-        "service": f"{settings.PROJECT_NAME} Backend",
-        "status": "healthy",
-        "environment": settings.APP_ENV,
-        "debug": settings.DEBUG,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
+    return health_check()
 
 
 @router.get("/readiness")
-def readiness_check():
+def readiness_check() -> dict[str, Any]:
     """
-    Readiness check endpoint.
+    Return the readiness status of the CyberShield360 backend.
+    """
 
-    Used to confirm that the API is ready to receive requests.
-    Later, we can extend this to check:
-    - Database connection
-    - Scanner availability
-    - Report directory access
-    """
     return {
-        "service": f"{settings.PROJECT_NAME} Backend",
+        "status": "ready",
         "ready": True,
+        "service": "CyberShield360 Backend",
+        "environment": _get_environment(),
         "message": "API is ready to receive requests",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
+        "checks": {
+            "api": "ready",
+            "database": "not_configured",
+            "cache": "not_configured",
+            "external_services": "not_configured",
+        },
     }
+
+
+def _get_environment() -> str:
+    """
+    Resolve the current application environment safely.
+    """
+
+    environment = (
+        getattr(settings, "ENVIRONMENT", None)
+        or getattr(settings, "APP_ENV", None)
+        or getattr(settings, "ENV", None)
+        or "development"
+    )
+
+    return str(environment)
