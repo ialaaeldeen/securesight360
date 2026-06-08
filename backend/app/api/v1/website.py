@@ -62,7 +62,7 @@ def scan_website(payload: WebsiteScanRequest) -> WebsiteScanResponse:
     )
 
     response_payload: dict[str, Any] = {
-        "scan_id": str(uuid4()),
+        "scan_id": _generate_scan_id(),
         "target_url": str(payload.target_url),
         "status": WebsiteScanStatus.COMPLETED,
         "security_score": _get_security_score(scanner_result),
@@ -201,10 +201,53 @@ def _build_security_headers_payload(
 
     plain_data = _to_plain_data(security_headers)
 
-    if isinstance(plain_data, dict):
-        return plain_data
+    if not isinstance(plain_data, dict):
+        return {}
 
-    return {}
+    return {
+        str(header_name): _normalize_security_header_value(header_value)
+        for header_name, header_value in plain_data.items()
+    }
+
+
+def _normalize_security_header_value(value: Any) -> Any:
+    """
+    Normalize security header scan output into schema-friendly values.
+
+    Some internal scanners may return rich dictionaries such as:
+    {"present": True, "value": "DENY"}.
+
+    The API schema expects simpler values, so this method extracts the most
+    useful field while preserving booleans and strings.
+    """
+
+    if value is None:
+        return None
+
+    if isinstance(value, Enum):
+        return value.value
+
+    if isinstance(value, bool | int | float | str):
+        return value
+
+    if isinstance(value, dict):
+        preferred_keys = (
+            "value",
+            "header_value",
+            "raw_value",
+            "present",
+            "enabled",
+            "configured",
+            "status",
+        )
+
+        for key in preferred_keys:
+            if key in value and value[key] is not None:
+                return _normalize_security_header_value(value[key])
+
+        return str(value)
+
+    return str(value)
 
 
 def _build_finding_previews(
@@ -336,11 +379,11 @@ def _to_plain_data(value: Any) -> Any:
 
     model_dump = getattr(value, "model_dump", None)
     if callable(model_dump):
-        return model_dump()
+        return _to_plain_data(model_dump())
 
     dict_method = getattr(value, "dict", None)
     if callable(dict_method):
-        return dict_method()
+        return _to_plain_data(dict_method())
 
     if isinstance(value, list):
         return [_to_plain_data(item) for item in value]
@@ -403,3 +446,13 @@ def _url_uses_https(url: str | None) -> bool:
         return False
 
     return urlparse(url).scheme.lower() == "https"
+
+
+def _generate_scan_id() -> int:
+    """
+    Generate a temporary positive integer scan ID for MVP responses.
+
+    Later, this should be replaced by the real database scan record ID.
+    """
+
+    return (uuid4().int % 900_000_000) + 100_000_000
