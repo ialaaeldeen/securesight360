@@ -42,7 +42,7 @@ def test_website_scan_returns_successful_response(
 ) -> None:
     class FakeWebsiteScanner:
         def scan(self, target_url: str) -> SimpleNamespace:
-            return SimpleNamespace(target_url=target_url)
+            return SimpleNamespace(target_url=target_url, risk_assessment=None)
 
     monkeypatch.setattr(
         "app.api.v1.website.WebsiteScanner",
@@ -60,6 +60,10 @@ def test_website_scan_returns_successful_response(
         "app.api.v1.website._get_security_score",
         lambda _scanner_result: 88,
     )
+    monkeypatch.setattr(
+        "app.api.v1.website.WebsiteScanPersistenceService.save_completed_website_scan",
+        _fake_save_completed_website_scan,
+    )
 
     response = client.post(
         "/api/v1/website/scan",
@@ -74,7 +78,7 @@ def test_website_scan_returns_successful_response(
 
     data = response.json()
 
-    assert data["scan_id"]
+    assert data["scan_id"] == 101
     assert data["target_url"].startswith("https://example.com")
     assert data["status"] in {"completed", "COMPLETED"}
     assert data["security_score"] == 88
@@ -95,7 +99,7 @@ def test_website_scan_response_contains_safe_scan_metadata(
 ) -> None:
     class FakeWebsiteScanner:
         def scan(self, target_url: str) -> SimpleNamespace:
-            return SimpleNamespace(target_url=target_url)
+            return SimpleNamespace(target_url=target_url, risk_assessment=None)
 
     monkeypatch.setattr(
         "app.api.v1.website.WebsiteScanner",
@@ -112,6 +116,10 @@ def test_website_scan_response_contains_safe_scan_metadata(
     monkeypatch.setattr(
         "app.api.v1.website._get_security_score",
         lambda _scanner_result: 88,
+    )
+    monkeypatch.setattr(
+        "app.api.v1.website.WebsiteScanPersistenceService.save_completed_website_scan",
+        _fake_save_completed_website_scan,
     )
 
     response = client.post(
@@ -183,3 +191,15 @@ def _fake_build_scan_result(
     }
 
     return _build_model(WebsiteScanResult, result_payload)
+
+
+def _fake_save_completed_website_scan(**kwargs: Any) -> SimpleNamespace:
+    """
+    Return a fake persisted database scan for endpoint tests.
+    """
+
+    assert kwargs["target_url"].startswith("https://example.com")
+    assert kwargs["security_score"] == 88
+    assert kwargs["authorization_confirmed"] is True
+
+    return SimpleNamespace(id=101)

@@ -3,11 +3,12 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Mapping, TypeVar, cast
 from urllib.parse import urlparse
-from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from app.database.session import get_db
 from app.scanners.website.website_scanner import WebsiteScanner, WebsiteScannerResult
 from app.schemas.website import (
     WebsiteFindingPreview,
@@ -18,6 +19,7 @@ from app.schemas.website import (
     WebsiteScanResult,
     WebsiteScanStatus,
 )
+from app.services.website_scan_service import WebsiteScanPersistenceService
 
 router = APIRouter(prefix="/website", tags=["Website Scanner"])
 
@@ -35,12 +37,18 @@ ModelT = TypeVar("ModelT", bound=BaseModel)
         "DNS/email security signals, and produces an explainable risk assessment."
     ),
 )
-def scan_website(payload: WebsiteScanRequest) -> WebsiteScanResponse:
+def scan_website(
+    payload: WebsiteScanRequest,
+    db: Session = Depends(get_db),
+) -> WebsiteScanResponse:
     """
     Run the Website Scanner MVP endpoint.
 
     The scan is intentionally safe and non-invasive. The requester must confirm
     that they own the target website or have explicit permission to scan it.
+
+    Completed scans are saved to the database and returned with the real
+    database-backed scan ID.
     """
 
     if not payload.authorization_confirmed:
@@ -52,20 +60,33 @@ def scan_website(payload: WebsiteScanRequest) -> WebsiteScanResponse:
             ),
         )
 
+    target_url = str(payload.target_url)
+
     scanner = WebsiteScanner()
-    scanner_result = scanner.scan(str(payload.target_url))
+    scanner_result = scanner.scan(target_url)
 
     findings = _build_finding_previews(scanner_result)
     scan_result = _build_scan_result(
         scanner_result=scanner_result,
-        original_target_url=str(payload.target_url),
+        original_target_url=target_url,
+    )
+    security_score = _get_security_score(scanner_result)
+
+    persisted_scan = WebsiteScanPersistenceService.save_completed_website_scan(
+        db=db,
+        target_url=target_url,
+        scan_result=scan_result,
+        security_score=security_score,
+        authorization_confirmed=payload.authorization_confirmed,
+        risk_assessment=_get_attr(scanner_result, "risk_assessment"),
+        finding_previews=findings,
     )
 
     response_payload: dict[str, Any] = {
-        "scan_id": _generate_scan_id(),
-        "target_url": str(payload.target_url),
+        "scan_id": persisted_scan.id,
+        "target_url": target_url,
         "status": WebsiteScanStatus.COMPLETED,
-        "security_score": _get_security_score(scanner_result),
+        "security_score": security_score,
         "findings_count": len(findings),
         "findings": findings,
         "result": scan_result,
@@ -446,13 +467,3 @@ def _url_uses_https(url: str | None) -> bool:
         return False
 
     return urlparse(url).scheme.lower() == "https"
-
-
-def _generate_scan_id() -> int:
-    """
-    Generate a temporary positive integer scan ID for MVP responses.
-
-    Later, this should be replaced by the real database scan record ID.
-    """
-
-    return (uuid4().int % 900_000_000) + 100_000_000
