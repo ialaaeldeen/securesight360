@@ -769,6 +769,77 @@ def _prepare_website_scan_result_payload(
         prepared.get("created_at"),
         _utc_now(),
     )
+    domain_source = _string_or_none(
+        _first_not_none(
+            prepared.get("domain"),
+            prepared.get("hostname"),
+            prepared.get("host"),
+            prepared.get("final_url"),
+            prepared.get("normalized_url"),
+            prepared.get("target_url"),
+            prepared.get("original_url"),
+        )
+    )
+
+    if domain_source is None:
+        domain = "unknown-target"
+    else:
+        domain_value = domain_source.strip()
+        if "://" in domain_value:
+            domain_value = domain_value.split("://", 1)[1]
+        domain = (
+            domain_value.split("/", 1)[0]
+            .split("?", 1)[0]
+            .split("#", 1)[0]
+            .split(":", 1)[0]
+            .lower()
+        ) or "unknown-target"
+
+    prepared["domain"] = domain
+
+    availability_payload = _to_mapping(
+        _first_not_none(
+            prepared.get("availability"),
+            prepared.get("availability_result"),
+            prepared.get("availability_check"),
+        )
+    )
+
+    prepared["is_available"] = bool(
+        _first_not_none(
+            prepared.get("is_available"),
+            prepared.get("available"),
+            prepared.get("reachable"),
+            availability_payload.get("is_available"),
+            availability_payload.get("available"),
+            availability_payload.get("reachable"),
+            True,
+        )
+    )
+
+    ssl_payload = _to_mapping(
+        _first_not_none(
+            prepared.get("ssl_tls"),
+            prepared.get("ssl"),
+            prepared.get("tls_result"),
+            prepared.get("ssl_result"),
+        )
+    )
+
+    prepared["https_enabled"] = bool(
+        _first_not_none(
+            prepared.get("https_enabled"),
+            prepared.get("tls_enabled"),
+            prepared.get("ssl_enabled"),
+            ssl_payload.get("https_enabled"),
+            ssl_payload.get("tls_enabled"),
+            ssl_payload.get("ssl_enabled"),
+            str(prepared.get("final_url", "")).lower().startswith("https://"),
+            str(prepared.get("original_url", "")).lower().startswith("https://"),
+            False,
+        )
+    )
+
 
     return prepared
 
