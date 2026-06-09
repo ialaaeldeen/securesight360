@@ -81,44 +81,6 @@ function statusStyle(status?: string) {
 
 type FlexibleScanResponse = ScanResponse & Record<string, any>;
 
-
-function toDisplayText(value: any): string {
-  if (value === null || value === undefined) return "";
-
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-
-  if (Array.isArray(value)) {
-    return value.map(toDisplayText).filter(Boolean).join(", ");
-  }
-
-  if (typeof value === "object") {
-    return (
-      value.title ||
-      value.summary ||
-      value.description ||
-      value.recommendation ||
-      value.evidence ||
-      value.category ||
-      JSON.stringify(value)
-    );
-  }
-
-  return String(value);
-}
-
-function toDisplayList(value: any): string[] {
-  if (value === null || value === undefined) return [];
-
-  if (Array.isArray(value)) {
-    return value.map(toDisplayText).map((item) => item.trim()).filter(Boolean);
-  }
-
-  const item = toDisplayText(value).trim();
-  return item ? [item] : [];
-}
-
-
 function normalizeScanResponse(response: ScanResponse): FlexibleScanResponse {
   const data = response as FlexibleScanResponse;
   const result = (data.result ?? {}) as Record<string, any>;
@@ -207,9 +169,9 @@ function normalizeScanResponse(response: ScanResponse): FlexibleScanResponse {
     executive_summary: executiveSummary,
     risk_engine_summary: riskEngineSummary,
     detection_summary: detectionSummary,
-    key_risk_drivers: toDisplayList(keyRiskDrivers),
-    priority_actions: toDisplayList(priorityActions),
-    positive_security_signals: toDisplayList(positiveSecuritySignals),
+    key_risk_drivers: keyRiskDrivers,
+    priority_actions: priorityActions,
+    positive_security_signals: positiveSecuritySignals,
     client_friendly_feedback: clientFriendlyFeedback,
     result: {
       ...result,
@@ -224,9 +186,9 @@ function normalizeScanResponse(response: ScanResponse): FlexibleScanResponse {
           security_score: securityScore,
           risk_level: riskLevel,
           grade,
-          key_risk_drivers: toDisplayList(keyRiskDrivers),
-          priority_actions: toDisplayList(priorityActions),
-          positive_security_signals: toDisplayList(positiveSecuritySignals),
+          key_risk_drivers: keyRiskDrivers,
+          priority_actions: priorityActions,
+          positive_security_signals: positiveSecuritySignals,
         },
         client_friendly_feedback: clientFriendlyFeedback,
       },

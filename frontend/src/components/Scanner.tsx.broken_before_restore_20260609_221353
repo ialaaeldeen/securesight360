@@ -78,204 +78,6 @@ function statusStyle(status?: string) {
   return { cls: "border-border bg-secondary text-muted-foreground", icon: FileText };
 }
 
-
-type FlexibleScanResponse = ScanResponse & Record<string, any>;
-
-
-function toDisplayText(value: any): string {
-  if (value === null || value === undefined) return "";
-
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-
-  if (Array.isArray(value)) {
-    return value.map(toDisplayText).filter(Boolean).join(", ");
-  }
-
-  if (typeof value === "object") {
-    return (
-      value.title ||
-      value.summary ||
-      value.description ||
-      value.recommendation ||
-      value.evidence ||
-      value.category ||
-      JSON.stringify(value)
-    );
-  }
-
-  return String(value);
-}
-
-function toDisplayList(value: any): string[] {
-  if (value === null || value === undefined) return [];
-
-  if (Array.isArray(value)) {
-    return value.map(toDisplayText).map((item) => item.trim()).filter(Boolean);
-  }
-
-  const item = toDisplayText(value).trim();
-  return item ? [item] : [];
-}
-
-
-function normalizeScanResponse(response: ScanResponse): FlexibleScanResponse {
-  const data = response as FlexibleScanResponse;
-  const result = (data.result ?? {}) as Record<string, any>;
-  const riskAssessment = (result.risk_assessment ?? {}) as Record<string, any>;
-  const metadata = (result.metadata ?? {}) as Record<string, any>;
-  const professionalResult = (metadata.professional_result ?? {}) as Record<string, any>;
-
-  const riskLevel =
-    data.risk_level ??
-    professionalResult.risk_level ??
-    riskAssessment.risk_level ??
-    "unknown";
-
-  const grade =
-    data.grade ??
-    professionalResult.grade ??
-    riskAssessment.grade ??
-    "—";
-
-  const securityScore =
-    data.security_score ??
-    professionalResult.security_score ??
-    riskAssessment.security_score ??
-    0;
-
-  const findings = Array.isArray(data.findings) ? data.findings : [];
-  const scoringDeductions = Array.isArray(riskAssessment.scoring_deductions)
-    ? riskAssessment.scoring_deductions
-    : [];
-
-  const keyRiskDrivers =
-    data.key_risk_drivers ??
-    professionalResult.key_risk_drivers ??
-    riskAssessment.key_risk_drivers ??
-    scoringDeductions.map((item: Record<string, any>) => item.title).filter(Boolean);
-
-  const priorityActions =
-    data.priority_actions ??
-    professionalResult.priority_actions ??
-    riskAssessment.priority_actions ??
-    findings.map((item: Record<string, any>) => item.recommendation).filter(Boolean);
-
-  const positiveSecuritySignals =
-    data.positive_security_signals ??
-    professionalResult.positive_security_signals ??
-    riskAssessment.positive_security_signals ??
-    [];
-
-  const executiveSummary =
-    data.executive_summary ??
-    professionalResult.executive_summary ??
-    riskAssessment.executive_summary ??
-    "Website scan completed successfully. Review the findings and priority actions below.";
-
-  const riskEngineSummary =
-    data.risk_engine_summary ??
-    professionalResult.risk_engine_summary ??
-    riskAssessment.risk_engine_summary ??
-    `Security score calculated as ${securityScore}/100 with ${findings.length} finding(s).`;
-
-  const detectionSummary =
-    data.detection_summary ??
-    professionalResult.detection_summary ??
-    riskAssessment.detection_summary ??
-    "The scanner evaluated availability, HTTPS/TLS, HTTP security headers, and DNS/email security signals.";
-
-  const clientFriendlyFeedback =
-    data.client_friendly_feedback ??
-    metadata.client_friendly_feedback ??
-    findings.map((finding: Record<string, any>) => ({
-      title: finding.title,
-      status: finding.severity,
-      summary: finding.description,
-      why_it_matters: finding.description,
-      recommendation: finding.recommendation,
-      evidence: finding.category,
-    }));
-
-  return {
-    ...data,
-    security_score: securityScore,
-    risk_level: riskLevel,
-    grade,
-    findings_count: data.findings_count ?? findings.length,
-    findings,
-    executive_summary: executiveSummary,
-    risk_engine_summary: riskEngineSummary,
-    detection_summary: detectionSummary,
-    key_risk_drivers: toDisplayList(keyRiskDrivers),
-    priority_actions: toDisplayList(priorityActions),
-    positive_security_signals: toDisplayList(positiveSecuritySignals),
-    client_friendly_feedback: clientFriendlyFeedback,
-    result: {
-      ...result,
-      risk_assessment: riskAssessment,
-      metadata: {
-        ...metadata,
-        professional_result: {
-          ...professionalResult,
-          executive_summary: executiveSummary,
-          risk_engine_summary: riskEngineSummary,
-          detection_summary: detectionSummary,
-          security_score: securityScore,
-          risk_level: riskLevel,
-          grade,
-          key_risk_drivers: toDisplayList(keyRiskDrivers),
-          priority_actions: toDisplayList(priorityActions),
-          positive_security_signals: toDisplayList(positiveSecuritySignals),
-        },
-        client_friendly_feedback: clientFriendlyFeedback,
-      },
-    },
-  };
-}
-
-function saveScanToHistory(scan: FlexibleScanResponse): void {
-  if (typeof window === "undefined") return;
-
-  const targetUrl = scan.target_url ?? scan.result?.final_url ?? scan.result?.original_url ?? "Unknown target";
-  const domain = scan.result?.domain ?? targetUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
-  const findingsCount = scan.findings_count ?? scan.findings?.length ?? 0;
-
-  const record = {
-    id: scan.scan_id ?? `${Date.now()}`,
-    scan_id: scan.scan_id,
-    status: scan.status ?? "completed",
-    target_url: targetUrl,
-    targetUrl,
-    domain,
-    scanned_at: new Date().toISOString(),
-    date: new Date().toISOString(),
-    timestamp: new Date().toISOString(),
-    security_score: scan.security_score ?? 0,
-    score: scan.security_score ?? 0,
-    risk_level: scan.risk_level ?? "unknown",
-    risk: scan.risk_level ?? "unknown",
-    level: scan.risk_level ?? "unknown",
-    grade: scan.grade ?? "—",
-    findings_count: findingsCount,
-    findingsCount,
-    findings: scan.findings ?? [],
-    executive_summary: scan.executive_summary,
-  };
-
-  const key = "cs360-scan-history";
-
-  try {
-    const existing = JSON.parse(window.localStorage.getItem(key) || "[]");
-    const records = Array.isArray(existing) ? existing : [];
-    const updated = [record, ...records].slice(0, 25);
-
-    window.localStorage.setItem(key, JSON.stringify(updated));
-  } catch {
-    window.localStorage.setItem(key, JSON.stringify([record]));
-  }
-}
-
 export function Scanner({ onReverify }: { onReverify?: () => void } = {}) {
   const { t } = useI18n();
   const [url, setUrl] = useState("");
@@ -314,70 +116,35 @@ export function Scanner({ onReverify }: { onReverify?: () => void } = {}) {
   async function runScan(e: React.FormEvent) {
     e.preventDefault();
     setTouched(true);
-
     if (!canSubmit) return;
-
     setLoading(true);
     setError(null);
     setData(null);
-
     try {
-      const payload = {
-        target_url: url.trim(),
-        scan_profile: "basic",
-        authorization_confirmed: true,
-      };
-
-      const endpoint = `${API_BASE_URL}/api/v1/website/scan`;
-
-      console.log("SecureSight360 scan request", {
-        endpoint,
-        payload,
-      });
-
-      const res = await fetch(endpoint, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/website/scan`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_url: url.trim(),
+          scan_profile: "basic",
+          authorization_confirmed: true,
+          company_domain: verifiedDomain || null,
+          matches_company_domain: matchesCompany,
+        }),
       });
-
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const rawText = await res.text();
+      console.log("SecureSight360 raw backend response:", rawText);
 
-      console.log("SecureSight360 scan response", {
-        status: res.status,
-        body: rawText,
-      });
-
-      let json: ScanResponse | any = null;
-
-      try {
-        json = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        throw new Error(
-          rawText ||
-            `Backend returned HTTP ${res.status}, but the response was not valid JSON.`,
-        );
-      }
-
-      if (!res.ok) {
-        const detail =
-          typeof json?.detail === "string"
-            ? json.detail
-            : JSON.stringify(json?.detail ?? json);
-
-        throw new Error(detail || `Backend scan failed with HTTP ${res.status}.`);
-      }
-
-      const normalized = normalizeScanResponse(json as ScanResponse);
-      setData(normalized);
-      saveScanToHistory(normalized);
-    } catch (err) {
+      const json = JSON.parse(rawText) as ScanResponse;
+      setData(json);
+    } catch (error) {
       const message =
-        err instanceof Error ? err.message : "Unable to connect to the backend scanner.";
+        error instanceof Error
+          ? error.message
+          : "Unable to connect to the backend scanner.";
 
-      console.error("SecureSight360 scanner error", err);
+      console.error("SecureSight360 scanner error:", error);
       setError(message);
     } finally {
       setLoading(false);
@@ -444,7 +211,7 @@ export function Scanner({ onReverify }: { onReverify?: () => void } = {}) {
           <div>
             <label className="text-xs uppercase tracking-wider text-muted-foreground">Scan Profile</label>
             <div className="mt-1.5 grid grid-cols-2 gap-2">
-              {(["basic"] as ScanProfile[]).map((p) => (
+              {(["basic", "advanced"] as ScanProfile[]).map((p) => (
                 <button
                   key={p}
                   type="button"
@@ -580,6 +347,11 @@ export function Scanner({ onReverify }: { onReverify?: () => void } = {}) {
             </div>
             <div>
               <div className="font-semibold text-danger">Unable to complete scan</div>
+              {error && (
+                <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
+                  {error}
+                </pre>
+              )}
               <p className="text-sm text-muted-foreground mt-1">Please verify the following and try again:</p>
               <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
                 <li>Backend API is running at {API_BASE_URL}</li>
@@ -789,5 +561,4 @@ function formatEvidence(e: FeedbackCard["evidence"]): string | null {
     return null;
   }
 }
-
 

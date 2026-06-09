@@ -55,9 +55,34 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    configured_cors_origins = settings.CORS_ORIGINS
+
+    if isinstance(configured_cors_origins, str):
+        cors_origins = [
+            origin.strip()
+            for origin in configured_cors_origins.split(",")
+            if origin.strip()
+        ]
+    else:
+        cors_origins = list(configured_cors_origins)
+
+    cors_origins.extend(
+        [
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://192.168.0.101:8080",
+        ]
+    )
+
+    cors_origins = list(dict.fromkeys(cors_origins))
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],

@@ -1,144 +1,377 @@
-import { useEffect, useState } from "react";
-import { History as HistoryIcon, Globe, Calendar, BarChart3, Trash2, Download, Search, ShieldCheck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Calendar,
+  Download,
+  Eye,
+  FileText,
+  Globe,
+  History as HistoryIcon,
+  Search,
+  ShieldAlert,
+  Trash2,
+} from "lucide-react";
 
-interface ScanRecord {
+type RawScanRecord = Record<string, any>;
+
+interface CleanScanRecord {
   id: string;
+  scanId?: number | string;
   domain: string;
+  targetUrl: string;
+  scannedAt: string;
   score: number;
   grade: string;
-  risk: "Low" | "Medium" | "High" | "Critical";
-  findings: number;
-  profile: "Basic" | "Advanced";
-  date: string; // ISO
+  riskLevel: string;
+  findingsCount: number;
+  status: string;
+  executiveSummary?: string;
 }
 
-const DEMO: ScanRecord[] = [
-  { id: "h1", domain: "acme-corp.com", score: 92, grade: "A", risk: "Low", findings: 3, profile: "Advanced", date: "2026-06-08T10:24:00Z" },
-  { id: "h2", domain: "fintrust.io", score: 74, grade: "B", risk: "Medium", findings: 9, profile: "Basic", date: "2026-06-07T15:11:00Z" },
-  { id: "h3", domain: "shop.example.net", score: 58, grade: "C", risk: "High", findings: 17, profile: "Advanced", date: "2026-06-05T09:02:00Z" },
-  { id: "h4", domain: "legacy.oldsite.org", score: 41, grade: "D", risk: "Critical", findings: 24, profile: "Basic", date: "2026-06-02T18:48:00Z" },
-  { id: "h5", domain: "acme-corp.com", score: 88, grade: "B", risk: "Low", findings: 5, profile: "Basic", date: "2026-05-28T08:30:00Z" },
-];
+const STORAGE_KEY = "cs360-scan-history";
 
-function riskClass(l: string) {
-  const m = l.toLowerCase();
-  if (m === "low") return "bg-success/15 text-success border-success/30";
-  if (m === "medium") return "bg-warning/15 text-warning border-warning/30";
-  if (m === "high") return "bg-danger/15 text-danger border-danger/30";
-  return "bg-red-950/60 text-red-300 border-red-800/60";
+function asText(value: unknown, fallback = "—"): string {
+  if (value === null || value === undefined) return fallback;
+
+  if (typeof value === "string") return value || fallback;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+
+  if (Array.isArray(value)) {
+    const text = value.map((item) => asText(item, "")).filter(Boolean).join(", ");
+    return text || fallback;
+  }
+
+  if (typeof value === "object") {
+    const item = value as Record<string, any>;
+
+    return (
+      item.title ||
+      item.summary ||
+      item.description ||
+      item.recommendation ||
+      item.evidence ||
+      item.category ||
+      fallback
+    );
+  }
+
+  return fallback;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  return fallback;
+}
+
+function formatDate(value: string): string {
+  if (!value) return "Unknown date";
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  return parsed.toLocaleString();
+}
+
+function extractDomain(value: string): string {
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return value.replace(/^https?:\/\//, "").replace(/\/$/, "") || "Unknown domain";
+  }
+}
+
+function normalizeRecord(record: RawScanRecord): CleanScanRecord {
+  const result = record.result ?? {};
+  const riskAssessment = result.risk_assessment ?? {};
+  const metadata = result.metadata ?? {};
+  const professionalResult = metadata.professional_result ?? {};
+
+  const targetUrl =
+    record.target_url ||
+    record.targetUrl ||
+    result.final_url ||
+    result.original_url ||
+    "Unknown target";
+
+  const findingsArray = Array.isArray(record.findings) ? record.findings : [];
+
+  const findingsCount =
+    asNumber(record.findings_count, NaN) ||
+    asNumber(record.findingsCount, NaN) ||
+    findingsArray.length ||
+    asNumber(riskAssessment?.scoring_deductions?.length, 0);
+
+  const riskLevel =
+    record.risk_level ||
+    record.risk ||
+    record.level ||
+    professionalResult.risk_level ||
+    riskAssessment.risk_level ||
+    "unknown";
+
+  const grade =
+    record.grade ||
+    professionalResult.grade ||
+    riskAssessment.grade ||
+    "—";
+
+  const score =
+    asNumber(record.security_score, NaN) ||
+    asNumber(record.score, NaN) ||
+    asNumber(professionalResult.security_score, NaN) ||
+    asNumber(riskAssessment.security_score, 0);
+
+  return {
+    id: asText(record.id || record.scan_id || `${targetUrl}-${record.scanned_at || Date.now()}`),
+    scanId: record.scan_id,
+    domain: asText(record.domain || result.domain || extractDomain(targetUrl)),
+    targetUrl: asText(targetUrl),
+    scannedAt: asText(record.scanned_at || record.date || record.timestamp || new Date().toISOString()),
+    score,
+    grade: asText(grade),
+    riskLevel: asText(riskLevel).toLowerCase(),
+    findingsCount,
+    status: asText(record.status || "completed").toLowerCase(),
+    executiveSummary:
+      record.executive_summary ||
+      professionalResult.executive_summary ||
+      riskAssessment.executive_summary,
+  };
+}
+
+function riskClass(level: string): string {
+  const normalized = level.toLowerCase();
+
+  if (normalized === "critical") {
+    return "border-red-500/40 bg-red-500/10 text-red-300";
+  }
+
+  if (normalized === "high") {
+    return "border-red-500/30 bg-red-500/10 text-red-300";
+  }
+
+  if (normalized === "medium") {
+    return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+  }
+
+  if (normalized === "low") {
+    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+  }
+
+  return "border-slate-600 bg-slate-700/40 text-slate-300";
+}
+
+function scoreClass(score: number): string {
+  if (score >= 85) return "text-emerald-400";
+  if (score >= 65) return "text-amber-400";
+  return "text-red-400";
 }
 
 export function History() {
-  const [records, setRecords] = useState<ScanRecord[]>([]);
+  const [records, setRecords] = useState<CleanScanRecord[]>([]);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("cs360-scan-history");
-      const parsed = raw ? (JSON.parse(raw) as ScanRecord[]) : [];
-      setRecords(parsed.length ? parsed : DEMO);
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+
+      if (!Array.isArray(parsed)) {
+        setRecords([]);
+        return;
+      }
+
+      setRecords(parsed.map(normalizeRecord));
     } catch {
-      setRecords(DEMO);
+      setRecords([]);
     }
   }, []);
 
-  const filtered = records.filter(r =>
-    r.domain.toLowerCase().includes(query.trim().toLowerCase())
-  );
+  const filteredRecords = useMemo(() => {
+    const search = query.trim().toLowerCase();
 
-  const clearAll = () => {
+    if (!search) return records;
+
+    return records.filter((record) => {
+      return (
+        record.domain.toLowerCase().includes(search) ||
+        record.targetUrl.toLowerCase().includes(search) ||
+        record.riskLevel.toLowerCase().includes(search) ||
+        record.grade.toLowerCase().includes(search)
+      );
+    });
+  }, [query, records]);
+
+  function clearHistory() {
     if (!confirm("Clear all scan history? This cannot be undone.")) return;
-    try { localStorage.removeItem("cs360-scan-history"); } catch {}
+
+    window.localStorage.removeItem(STORAGE_KEY);
     setRecords([]);
-  };
+  }
+
+  function viewRecord(record: CleanScanRecord) {
+    alert(
+      [
+        `Target: ${record.targetUrl}`,
+        `Score: ${record.score}/100`,
+        `Risk: ${record.riskLevel}`,
+        `Grade: ${record.grade}`,
+        `Findings: ${record.findingsCount}`,
+        "",
+        record.executiveSummary || "No executive summary stored for this scan.",
+      ].join("\n"),
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <section className="glass rounded-2xl p-6 relative overflow-hidden">
-        <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan/10 blur-3xl" />
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-cyan/20 to-accent-blue/10 border border-border">
-              <HistoryIcon className="h-6 w-6 text-cyan" />
+      <section className="glass rounded-3xl p-6 md:p-8">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="rounded-2xl bg-cyan/10 p-4 text-cyan">
+              <HistoryIcon className="h-7 w-7" />
             </div>
-            <div className="min-w-0">
+
+            <div>
               <h1 className="text-2xl font-semibold tracking-tight">Scan History</h1>
-              <p className="text-sm text-muted-foreground">Every authorized assessment, kept private and searchable.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Every authorized assessment, kept private and searchable.
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 w-full md:w-72">
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex min-w-[260px] items-center gap-2 rounded-2xl border border-border bg-background/40 px-4 py-3">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search domain..."
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
+
             <button
-              onClick={clearAll}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-danger/40 bg-danger/10 text-danger px-3 py-2 text-xs hover:bg-danger/20 transition"
+              type="button"
+              onClick={clearHistory}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-500/30 px-4 py-3 text-sm font-medium text-red-300 transition hover:bg-red-500/10"
             >
-              <Trash2 className="h-3.5 w-3.5" /> Clear
+              <Trash2 className="h-4 w-4" />
+              Clear
             </button>
           </div>
         </div>
       </section>
 
-      {filtered.length === 0 ? (
-        <div className="glass rounded-2xl p-10 text-center">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-secondary border border-border">
-            <HistoryIcon className="h-6 w-6 text-cyan" />
+      {filteredRecords.length === 0 ? (
+        <section className="glass rounded-3xl p-10 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan/10 text-cyan">
+            <FileText className="h-7 w-7" />
           </div>
-          <div className="mt-4 font-medium">No scan history yet</div>
-          <p className="text-sm text-muted-foreground mt-1">Run a website scan to see results stored here.</p>
-        </div>
+
+          <h2 className="mt-4 text-lg font-semibold">No scan history yet</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Run a website scan to see clean results saved here.
+          </p>
+        </section>
       ) : (
-        <div className="grid gap-3">
-          {filtered.map((r) => (
-            <div key={r.id} className="glass rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center gap-4">
-              <div className="flex items-center gap-3 min-w-0 md:w-1/3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary border border-border">
-                  <Globe className="h-4 w-4 text-cyan" />
-                </div>
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{r.domain}</div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <Calendar className="h-3 w-3" /> {new Date(r.date).toLocaleString()}
+        <div className="space-y-4">
+          {filteredRecords.map((record) => (
+            <article
+              key={record.id}
+              className="glass rounded-3xl p-5 md:p-6"
+            >
+              <div className="grid gap-5 lg:grid-cols-[1.4fr_repeat(4,minmax(110px,0.45fr))_auto] lg:items-center">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-cyan/10 text-cyan">
+                    <Globe className="h-5 w-5" />
+                  </div>
+
+                  <div className="min-w-0">
+                    <h3 className="truncate font-semibold text-foreground">{record.domain}</h3>
+
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5" />
+                        {formatDate(record.scannedAt)}
+                      </span>
+
+                      <span className="truncate">{record.targetUrl}</span>
+                    </div>
+
+                    {record.executiveSummary && (
+                      <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+                        {record.executiveSummary}
+                      </p>
+                    )}
                   </div>
                 </div>
+
+                <div className="rounded-2xl border border-border bg-background/30 p-4 text-center">
+                  <div className={`text-2xl font-bold ${scoreClass(record.score)}`}>
+                    {record.score}
+                  </div>
+                  <div className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">
+                    Score
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-background/30 p-4 text-center">
+                  <div className="text-2xl font-bold text-cyan">{record.grade}</div>
+                  <div className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">
+                    Grade
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-background/30 p-4 text-center">
+                  <div className="text-2xl font-bold text-foreground">{record.findingsCount}</div>
+                  <div className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">
+                    Findings
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-background/30 p-4 text-center">
+                  <span
+                    className={`inline-flex items-center justify-center rounded-xl border px-3 py-1 text-xs font-semibold capitalize ${riskClass(record.riskLevel)}`}
+                  >
+                    <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
+                    {record.riskLevel}
+                  </span>
+                  <div className="mt-2 text-xs uppercase tracking-wider text-muted-foreground">
+                    Risk
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => viewRecord(record)}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-border bg-background/40 px-4 py-2 text-sm font-medium transition hover:bg-cyan/10 hover:text-cyan"
+                  >
+                    <Eye className="h-4 w-4" />
+                    View
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => alert("PDF export will be connected in the report module.")}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-border bg-background/40 px-4 py-2 text-sm font-medium transition hover:bg-cyan/10 hover:text-cyan"
+                  >
+                    <Download className="h-4 w-4" />
+                    PDF
+                  </button>
+                </div>
               </div>
-              <div className="grid grid-cols-4 gap-2 flex-1">
-                <Mini v={String(r.score)} l="Score" tone={r.score >= 85 ? "text-success" : r.score >= 65 ? "text-warning" : "text-danger"} />
-                <Mini v={r.grade} l="Grade" tone="text-cyan" />
-                <Mini v={String(r.findings)} l="Findings" tone="text-soft" />
-                <Mini v={r.profile} l="Profile" tone="text-accent-blue" />
-              </div>
-              <div className="flex items-center gap-2 md:w-auto">
-                <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium ${riskClass(r.risk)}`}>
-                  <ShieldCheck className="h-3 w-3" /> {r.risk}
-                </span>
-                <button className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs hover:bg-secondary transition">
-                  <BarChart3 className="h-3.5 w-3.5" /> View
-                </button>
-                <button className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs hover:bg-secondary transition">
-                  <Download className="h-3.5 w-3.5" /> PDF
-                </button>
-              </div>
-            </div>
+            </article>
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function Mini({ v, l, tone }: { v: string; l: string; tone: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-surface/60 p-2.5 text-center">
-      <div className={`text-base font-semibold ${tone}`}>{v}</div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{l}</div>
     </div>
   );
 }
