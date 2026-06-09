@@ -85,3 +85,11 @@ Thumbs.db
 # =========================
 .idea/
 .vscode/
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Frontend backups
+frontend_backup*/
+frontend_lovable_temp/
