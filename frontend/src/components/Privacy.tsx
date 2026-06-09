@@ -44,7 +44,7 @@ export function Privacy() {
         </Card>
         <Card icon={FileText} title="Your rights">
           You may request access, correction, export, or deletion of your data at any time. Reach us at
-          privacy@cybershield360.app.
+          privacy@securesight360.app.
         </Card>
       </div>
 
@@ -73,7 +73,7 @@ export function Privacy() {
           </div>
         </div>
         <a
-          href="mailto:privacy@cybershield360.app"
+          href="mailto:privacy@securesight360.app"
           className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan hover:brightness-110 transition"
         >
           Contact privacy team
@@ -96,3 +96,4 @@ function Card({ icon: Icon, title, children }: { icon: any; title: string; child
     </div>
   );
 }
+
