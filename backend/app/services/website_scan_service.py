@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass, is_dataclass
 from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any, Mapping, Sequence
+from urllib.parse import urlparse
 
 from sqlalchemy import Date, DateTime, JSON, MetaData, Table, insert
 from sqlalchemy import Enum as SqlEnum
@@ -187,11 +188,14 @@ def _build_scan_row(
             "target_url": target_url,
             "url": target_url,
             "normalized_url": normalized_url,
-            "scan_type": "website",
-            "type": "website",
+            "domain": _extract_domain_from_url(normalized_url or target_url),
+            "hostname": _extract_domain_from_url(normalized_url or target_url),
+            "target_type": "WEBSITE",
+            "scan_type": "WEBSITE_BASIC",
+            "type": "WEBSITE_BASIC",
             "module": "website_scanner",
-            "status": "completed",
-            "scan_status": "completed",
+            "status": "COMPLETED",
+            "scan_status": "COMPLETED",
             "security_score": score,
             "score": score,
             "risk_score": score,
@@ -276,12 +280,22 @@ def _build_website_check_row(
     ssl_tls_payload = _first_mapping(
         scan_payload,
         raw_payload,
-        keys=("ssl_tls", "ssl_result", "tls_result", "certificate_result"),
+        keys=(
+            "ssl_tls",
+            "ssl",
+            "ssl_result",
+            "tls_result",
+            "certificate_result",
+            "certificate",
+            "ssl_check",
+            "tls_check",
+        ),
     )
     dns_email_payload = _first_mapping(
         scan_payload,
         raw_payload,
         keys=(
+            "dns",
             "dns_email_security",
             "dns_security",
             "dns_result",
@@ -318,8 +332,24 @@ def _build_website_check_row(
                     target_url,
                 )
             ),
-            "status": "completed",
-            "scan_status": "completed",
+            "domain": _extract_domain_from_url(
+                _first_not_none(
+                    scan_payload.get("normalized_url"),
+                    raw_payload.get("normalized_url"),
+                    raw_payload.get("final_url"),
+                    target_url,
+                )
+            ),
+            "hostname": _extract_domain_from_url(
+                _first_not_none(
+                    scan_payload.get("normalized_url"),
+                    raw_payload.get("normalized_url"),
+                    raw_payload.get("final_url"),
+                    target_url,
+                )
+            ),
+            "status": "COMPLETED",
+            "scan_status": "COMPLETED",
             "reachable": reachable,
             "is_reachable": reachable,
             "http_status_code": _first_not_none(
@@ -376,6 +406,36 @@ def _build_website_check_row(
                 headers_payload,
                 "X-Content-Type-Options",
             ),
+            "ssl_valid": _first_not_none(
+                ssl_tls_payload.get("ssl_valid"),
+                ssl_tls_payload.get("certificate_valid"),
+                ssl_tls_payload.get("is_valid"),
+                ssl_tls_payload.get("valid"),
+            ),
+            "ssl_issuer": _string_or_none(
+                _first_not_none(
+                    ssl_tls_payload.get("ssl_issuer"),
+                    ssl_tls_payload.get("issuer"),
+                    ssl_tls_payload.get("certificate_issuer"),
+                )
+            ),
+            "ssl_subject": _string_or_none(
+                _first_not_none(
+                    ssl_tls_payload.get("ssl_subject"),
+                    ssl_tls_payload.get("subject"),
+                    ssl_tls_payload.get("certificate_subject"),
+                    ssl_tls_payload.get("common_name"),
+                )
+            ),
+            "ssl_expiry_date": _first_not_none(
+                ssl_tls_payload.get("ssl_expiry_date"),
+                ssl_tls_payload.get("ssl_expiry"),
+                ssl_tls_payload.get("expiry_date"),
+                ssl_tls_payload.get("expires_at"),
+                ssl_tls_payload.get("certificate_expires_at"),
+                ssl_tls_payload.get("not_after"),
+                ssl_tls_payload.get("valid_until"),
+            ),
             "ssl_tls": ssl_tls_payload,
             "ssl": ssl_tls_payload,
             "ssl_tls_json": ssl_tls_payload,
@@ -399,6 +459,56 @@ def _build_website_check_row(
                 ssl_tls_payload.get("expires_at"),
                 ssl_tls_payload.get("not_after"),
                 ssl_tls_payload.get("valid_until"),
+            ),
+            "dns_records": _compact_plain_data(
+                _first_not_none(
+                    dns_email_payload.get("records"),
+                    dns_email_payload.get("dns_records"),
+                    dns_email_payload.get("record_sets"),
+                )
+            ),
+            "spf_found": _bool_or_none(
+                _first_not_none(
+                    dns_email_payload.get("spf_found"),
+                    dns_email_payload.get("has_spf"),
+                    dns_email_payload.get("spf_present"),
+                    dns_email_payload.get("spf_record_found"),
+                )
+            ),
+            "dmarc_found": _bool_or_none(
+                _first_not_none(
+                    dns_email_payload.get("dmarc_found"),
+                    dns_email_payload.get("has_dmarc"),
+                    dns_email_payload.get("dmarc_present"),
+                    dns_email_payload.get("dmarc_record_found"),
+                )
+            ),
+            "dkim_guidance": _string_or_none(
+                _first_not_none(
+                    dns_email_payload.get("dkim_guidance"),
+                    dns_email_payload.get("dkim_recommendation"),
+                    dns_email_payload.get("dkim_status"),
+                    dns_email_payload.get("dkim_note"),
+                )
+            ),
+            "technologies": _compact_plain_data(
+                _first_not_none(
+                    raw_payload.get("technologies_detected"),
+                    scan_payload.get("technologies_detected"),
+                    raw_payload.get("technologies"),
+                    scan_payload.get("technologies"),
+                    raw_payload.get("technology_stack"),
+                    scan_payload.get("technology_stack"),
+                )
+            ),
+            "raw_headers": _compact_plain_data(
+                _first_not_none(
+                    availability_payload.get("raw_headers"),
+                    availability_payload.get("headers"),
+                    headers_payload.get("raw_headers"),
+                    headers_payload.get("headers"),
+                    headers_payload.get("raw"),
+                )
             ),
             "dns_email_security": dns_email_payload,
             "dns_security": dns_email_payload,
@@ -528,7 +638,7 @@ def _build_finding_rows(
                     "reference": standards_payload,
                     "references": standards_payload,
                     "standards": standards_payload,
-                    "status": "open",
+                    "status": "OPEN",
                     "source": "risk_engine",
                     "metadata": metadata_payload,
                     "details": metadata_payload,
@@ -578,6 +688,7 @@ def _insert_row(db: Session, table: Table, payload: Mapping[str, Any]) -> Any:
     return filtered_payload.get("id")
 
 
+
 def _filter_payload_for_table(
     table: Table,
     payload: Mapping[str, Any],
@@ -598,12 +709,254 @@ def _filter_payload_for_table(
             column=column,
         )
 
-    return filtered_payload
+    return _apply_required_column_defaults(
+        table=table,
+        payload=filtered_payload,
+    )
+
+
+def _apply_required_column_defaults(
+    table: Table,
+    payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    completed_payload = dict(payload)
+
+    for column in table.c:
+        column_name = str(column.name)
+
+        if not _column_requires_value(column):
+            continue
+
+        if column_name in completed_payload and _has_meaningful_value(
+            completed_payload[column_name]
+        ):
+            continue
+
+        default_value = _default_value_for_required_column(
+            table=table,
+            column=column,
+            payload=completed_payload,
+        )
+
+        if default_value is None:
+            continue
+
+        completed_payload[column_name] = _coerce_for_column(
+            value=default_value,
+            column=column,
+        )
+
+    return completed_payload
+
+
+def _column_requires_value(column: Column[Any]) -> bool:
+    return (
+        not bool(column.nullable)
+        and not bool(column.primary_key)
+        and column.default is None
+        and column.server_default is None
+    )
+
+
+def _default_value_for_required_column(
+    table: Table,
+    column: Column[Any],
+    payload: Mapping[str, Any],
+) -> Any:
+    column_name = str(column.name).lower()
+    table_name = str(table.name).lower()
+
+    target_value = _string_or_none(
+        _first_not_none(
+            payload.get("target"),
+            payload.get("target_url"),
+            payload.get("url"),
+            payload.get("normalized_url"),
+            payload.get("original_url"),
+            payload.get("final_url"),
+        )
+    ) or "unknown-target"
+
+    if column_name in {"domain", "hostname", "host"}:
+        return _extract_domain_from_url(target_value)
+
+    if column_name in {
+        "target",
+        "target_url",
+        "url",
+        "normalized_url",
+        "original_url",
+        "final_url",
+    }:
+        return target_value
+
+    if column_name == "target_type":
+        return "WEBSITE"
+
+    if column_name in {"scan_type", "type"}:
+        return "WEBSITE_BASIC"
+
+    if column_name in {"status", "scan_status"}:
+        if table_name == "findings":
+            return "OPEN"
+        return "COMPLETED"
+
+    if column_name in {"module", "scanner_module"}:
+        return "website_scanner"
+
+    if column_name in {"source", "finding_source"}:
+        if table_name == "findings":
+            return "risk_engine"
+        return "website_scanner"
+
+    if column_name in {
+        "security_score",
+        "score",
+        "risk_score",
+        "deduction_points",
+        "findings_count",
+        "total_deduction",
+    } or column_name.endswith("_count"):
+        return 0
+
+    if column_name in {
+        "authorization_confirmed",
+        "authorized",
+        "is_authorized",
+    }:
+        return True
+
+    if column_name == "authorization_text":
+        return DEFAULT_AUTHORIZATION_TEXT
+
+    if column_name in {
+        "created_at",
+        "updated_at",
+        "started_at",
+        "completed_at",
+        "scanned_at",
+        "generated_at",
+    } or _is_datetime_column(column):
+        return _utc_now()
+
+    if _is_date_column(column):
+        return _utc_now().date()
+
+    if column_name in {
+        "metadata",
+        "details",
+        "raw_result",
+        "raw_scan_result",
+        "scan_result",
+        "result",
+        "result_json",
+        "risk_assessment",
+        "risk_assessment_json",
+        "evidence",
+        "evidence_json",
+        "headers",
+        "headers_json",
+        "ssl_tls",
+        "ssl_tls_json",
+        "dns_json",
+    } or _is_json_column(column):
+        return {}
+
+    if column_name in {"title", "name"}:
+        if table_name == "findings":
+            return "Website security finding"
+        return "Website security scan"
+
+    if column_name == "description":
+        if table_name == "findings":
+            return "Website security finding generated from the risk engine."
+        return "Website security scan result persisted by CyberShield360."
+
+    if column_name == "recommendation":
+        return "Review the website security findings and apply the recommended controls."
+
+    if column_name == "business_impact":
+        return "Potential website security exposure."
+
+    if column_name == "detection_method":
+        return "Automated safe website security checks."
+
+    if column_name == "severity":
+        return "MEDIUM"
+
+    if column_name == "category":
+        return "WEBSITE_SECURITY"
+
+    if column_name in {
+        "is_available",
+        "available",
+        "reachable",
+        "is_reachable",
+        "https_enabled",
+    }:
+        return True
+
+    if column_name.startswith(("is_", "has_", "can_", "should_")):
+        return False
+
+    if _is_numeric_column(column):
+        return 0
+
+    if _is_string_column(column):
+        return "unknown"
+
+    return None
+
+
+def _column_type_name(column: Column[Any]) -> str:
+    return column.type.__class__.__name__.lower()
+
+
+def _is_datetime_column(column: Column[Any]) -> bool:
+    return "datetime" in _column_type_name(column)
+
+
+def _is_date_column(column: Column[Any]) -> bool:
+    column_type_name = _column_type_name(column)
+    return "date" in column_type_name and "datetime" not in column_type_name
+
+
+def _is_json_column(column: Column[Any]) -> bool:
+    column_type_name = _column_type_name(column)
+    return "json" in column_type_name
+
+
+def _is_numeric_column(column: Column[Any]) -> bool:
+    column_type_name = _column_type_name(column)
+    return any(
+        marker in column_type_name
+        for marker in ("integer", "float", "numeric", "decimal")
+    )
+
+
+def _is_string_column(column: Column[Any]) -> bool:
+    column_type_name = _column_type_name(column)
+    return any(
+        marker in column_type_name
+        for marker in ("string", "text", "varchar", "char")
+    )
 
 
 def _coerce_for_column(value: Any, column: Column[Any]) -> Any:
     value = _to_plain_data(value)
     column_type = column.type
+
+    if isinstance(column_type, DateTime):
+        parsed_datetime = _coerce_datetime(value)
+        if parsed_datetime is not None:
+            return parsed_datetime
+        return _utc_now()
+
+    if isinstance(column_type, Date):
+        parsed_date = _coerce_date(value)
+        if parsed_date is not None:
+            return parsed_date
+        return _utc_now().date()
 
     enum_value = _coerce_enum_for_column(value=value, column_type=column_type)
     if enum_value is not None:
@@ -618,8 +971,6 @@ def _coerce_for_column(value: Any, column: Column[Any]) -> Any:
         return json.dumps(value, ensure_ascii=False, default=str)
 
     if isinstance(value, (datetime, date)):
-        if isinstance(column_type, (DateTime, Date)):
-            return value
         return value.isoformat()
 
     if isinstance(column_type, (String, Text)) and not isinstance(
@@ -631,41 +982,117 @@ def _coerce_for_column(value: Any, column: Column[Any]) -> Any:
     return value
 
 
+def _coerce_datetime(value: Any) -> datetime | None:
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        return value
+
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time())
+
+    if isinstance(value, str):
+        cleaned_value = value.strip()
+        if not cleaned_value:
+            return None
+
+        if cleaned_value.endswith("Z"):
+            cleaned_value = f"{cleaned_value[:-1]}+00:00"
+
+        try:
+            return datetime.fromisoformat(cleaned_value)
+        except ValueError:
+            return None
+
+    return None
+
+
+def _coerce_date(value: Any) -> date | None:
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        return value.date()
+
+    if isinstance(value, date):
+        return value
+
+    if isinstance(value, str):
+        parsed_datetime = _coerce_datetime(value)
+        if parsed_datetime is not None:
+            return parsed_datetime.date()
+
+        cleaned_value = value.strip()
+        if not cleaned_value:
+            return None
+
+        try:
+            return date.fromisoformat(cleaned_value)
+        except ValueError:
+            return None
+
+    return None
+
 def _coerce_enum_for_column(value: Any, column_type: Any) -> Any | None:
     if not isinstance(column_type, SqlEnum):
         return None
 
-    enum_class = getattr(column_type, "enum_class", None)
-    if enum_class is not None:
-        if isinstance(value, enum_class):
-            return value
-
-        if isinstance(value, Enum):
-            value = value.value
-
-        if isinstance(value, str):
-            for candidate in (value, value.upper(), value.lower()):
-                try:
-                    return enum_class(candidate)
-                except ValueError:
-                    pass
-
-                try:
-                    return enum_class[candidate]
-                except KeyError:
-                    pass
-
-    allowed_values = list(getattr(column_type, "enums", []) or [])
     if isinstance(value, Enum):
         value = value.value
 
-    if isinstance(value, str):
-        for candidate in (value, value.upper(), value.lower()):
-            if candidate in allowed_values:
-                return candidate
+    if not isinstance(value, str):
+        return None
+
+    raw_value = value.strip()
+    if not raw_value:
+        return None
+
+    normalized = raw_value.replace("-", "_").replace(" ", "_")
+    normalized_lower = normalized.lower()
+
+    aliases: dict[str, list[str]] = {
+        "website": ["WEBSITE_BASIC", "website_basic", "WEBSITE", "website"],
+        "website_basic": ["WEBSITE_BASIC", "website_basic"],
+        "completed": ["COMPLETED", "completed"],
+        "failed": ["FAILED", "failed"],
+        "running": ["RUNNING", "running"],
+        "pending": ["PENDING", "pending"],
+        "open": ["OPEN", "open"],
+        "closed": ["CLOSED", "closed"],
+        "resolved": ["RESOLVED", "resolved"],
+    }
+
+    candidates: list[str] = []
+    for candidate in (
+        raw_value,
+        normalized,
+        normalized.upper(),
+        normalized.lower(),
+        *aliases.get(normalized_lower, []),
+    ):
+        if candidate not in candidates:
+            candidates.append(candidate)
+
+    enum_class = getattr(column_type, "enum_class", None)
+    if enum_class is not None:
+        for candidate in candidates:
+            try:
+                return enum_class(candidate)
+            except ValueError:
+                pass
+
+            try:
+                return enum_class[candidate]
+            except KeyError:
+                pass
+
+    allowed_values = list(getattr(column_type, "enums", []) or [])
+    for candidate in candidates:
+        if candidate in allowed_values:
+            return candidate
 
     return None
-
 
 def _risk_payload(
     explicit_risk_assessment: Any | None,
@@ -761,6 +1188,26 @@ def _header_is_present(
             return bool(value)
 
     return None
+
+
+
+def _extract_domain_from_url(value: Any) -> str:
+    raw_value = _string_or_none(value)
+    if raw_value is None:
+        return "unknown"
+
+    candidate = raw_value.strip()
+    if not candidate:
+        return "unknown"
+
+    parsed = urlparse(candidate)
+    if not parsed.netloc:
+        parsed = urlparse(f"https://{candidate}")
+
+    domain = parsed.netloc or parsed.path.split("/", 1)[0]
+    domain = domain.split("@")[-1].split(":", 1)[0].strip().lower()
+
+    return domain or "unknown"
 
 
 def _to_plain_data(value: Any) -> Any:
@@ -905,6 +1352,27 @@ def _first_not_none(*values: Any) -> Any:
     return None
 
 
+
+def _bool_or_none(value: Any) -> bool | None:
+    if value is None:
+        return None
+
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "yes", "y", "1", "found", "present", "enabled"}:
+            return True
+        if normalized in {"false", "no", "n", "0", "missing", "absent", "disabled"}:
+            return False
+
+    if isinstance(value, (int, float)):
+        return bool(value)
+
+    return None
+
+
 def _string_or_none(value: Any) -> str | None:
     if value is None:
         return None
@@ -946,3 +1414,4 @@ def _has_meaningful_value(value: Any) -> bool:
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
