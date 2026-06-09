@@ -1,735 +1,900 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
+import json
+from dataclasses import asdict, dataclass, is_dataclass
+from datetime import date, datetime, timezone
 from enum import Enum
-from typing import Any
-from urllib.parse import urlparse
+from typing import Any, Mapping, Sequence
 
+from sqlalchemy import Date, DateTime, JSON, MetaData, Table, insert
+from sqlalchemy import Enum as SqlEnum
+from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.orm import Session
-
-from app.models.finding import Finding, FindingCategory, FindingSeverity
-from app.models.scan import Scan, ScanStatus, ScanType, TargetType
-from app.models.website_check import WebsiteCheck
+from sqlalchemy.sql.schema import Column
+from sqlalchemy.sql.sqltypes import String, Text
 
 DEFAULT_AUTHORIZATION_TEXT = (
-    "The requester confirmed that they own the target or have explicit "
-    "authorization to perform this CyberShield360 website scan."
+    "The user confirmed they are authorized to scan this website asset."
 )
+
+
+@dataclass(frozen=True)
+class PersistedWebsiteScan:
+    """
+    Lightweight return object for persistence operations.
+
+    The API only needs the persisted scan identifier, while keeping this as a
+    dataclass avoids depending on a specific ORM model shape.
+    """
+
+    id: Any
 
 
 class WebsiteScanPersistenceService:
     """
-    Handles database persistence for CyberShield360 website scans.
+    Persist completed Website Scanner MVP results.
 
-    This service stores:
-    - Main scan metadata in the scans table
-    - Website-specific evidence in the website_checks table
-    - Explainable risk findings in the findings table
+    The service stores data from two sources:
+    1. The cleaned API scan result.
+    2. The raw scanner result.
 
-    The API layer should call this service after the scanner and risk engine
-    complete successfully.
+    This makes persistence more resilient and reduces avoidable NULL / empty
+    JSON values when one representation has richer evidence than the other.
     """
 
     @staticmethod
     def save_completed_website_scan(
-        *,
         db: Session,
         target_url: str,
         scan_result: Any,
-        security_score: int | None,
+        security_score: int | float | None,
         authorization_confirmed: bool,
+        raw_scanner_result: Any | None = None,
         risk_assessment: Any | None = None,
         finding_previews: Sequence[Any] | None = None,
         authorization_text: str = DEFAULT_AUTHORIZATION_TEXT,
-    ) -> Scan:
-        """
-        Save a completed website scan and related evidence.
-
-        Returns the persisted Scan record. The caller can use scan.id as the
-        real database-backed scan_id in the API response.
-        """
-
-        now = datetime.now(UTC)
-
-        scan = _build_scan_record(
-            target_url=target_url,
-            security_score=security_score,
-            authorization_confirmed=authorization_confirmed,
-            authorization_text=authorization_text,
-            started_at=now,
-            completed_at=now,
-        )
+    ) -> PersistedWebsiteScan:
+        now = _utc_now()
+        metadata = MetaData()
+        bind = db.get_bind()
 
         try:
-            db.add(scan)
-            db.flush()
+            scans_table = _require_table(
+                _reflect_table(
+                    metadata=metadata,
+                    bind=bind,
+                    table_name="scans",
+                    required=True,
+                )
+            )
 
-            website_check = _build_website_check_record(
-                scan_id=scan.id,
+            scan_payload = _build_scan_row(
                 target_url=target_url,
                 scan_result=scan_result,
-            )
-            db.add(website_check)
-
-            findings = _build_finding_records(
-                scan_id=scan.id,
+                raw_scanner_result=raw_scanner_result,
                 risk_assessment=risk_assessment,
-                finding_previews=finding_previews,
+                security_score=security_score,
+                authorization_confirmed=authorization_confirmed,
+                authorization_text=authorization_text,
+                now=now,
             )
 
-            for finding in findings:
-                db.add(finding)
+            scan_id = _insert_row(
+                db=db,
+                table=scans_table,
+                payload=scan_payload,
+            )
+
+            website_checks_table = _reflect_table(
+                metadata=metadata,
+                bind=bind,
+                table_name="website_checks",
+                required=False,
+            )
+
+            if website_checks_table is not None:
+                website_check_payload = _build_website_check_row(
+                    scan_id=scan_id,
+                    target_url=target_url,
+                    scan_result=scan_result,
+                    raw_scanner_result=raw_scanner_result,
+                    risk_assessment=risk_assessment,
+                    security_score=security_score,
+                    now=now,
+                )
+
+                _insert_row(
+                    db=db,
+                    table=_require_table(website_checks_table),
+                    payload=website_check_payload,
+                )
+
+            findings_table = _reflect_table(
+                metadata=metadata,
+                bind=bind,
+                table_name="findings",
+                required=False,
+            )
+
+            if findings_table is not None:
+                finding_rows = _build_finding_rows(
+                    scan_id=scan_id,
+                    risk_assessment=risk_assessment,
+                    finding_previews=finding_previews,
+                    now=now,
+                )
+
+                for finding_payload in finding_rows:
+                    _insert_row(
+                        db=db,
+                        table=_require_table(findings_table),
+                        payload=finding_payload,
+                    )
 
             db.commit()
-            db.refresh(scan)
+            return PersistedWebsiteScan(id=scan_id)
 
-            return scan
-
-        except Exception:
+        except Exception as exc:
             db.rollback()
-            raise
-
-    @staticmethod
-    def save_failed_website_scan(
-        *,
-        db: Session,
-        target_url: str,
-        error_message: str,
-        authorization_confirmed: bool,
-        authorization_text: str = DEFAULT_AUTHORIZATION_TEXT,
-    ) -> Scan:
-        """
-        Save a failed website scan attempt.
-
-        This is useful later when we want scan history to show failed scans
-        instead of losing failed attempts.
-        """
-
-        now = datetime.now(UTC)
-
-        scan = _build_scan_record(
-            target_url=target_url,
-            security_score=None,
-            authorization_confirmed=authorization_confirmed,
-            authorization_text=authorization_text,
-            started_at=now,
-            completed_at=now,
-        )
-
-        scan.status = ScanStatus.FAILED
-        scan.error_message = error_message
-
-        try:
-            db.add(scan)
-            db.commit()
-            db.refresh(scan)
-
-            return scan
-
-        except Exception:
-            db.rollback()
-            raise
+            raise RuntimeError("Failed to persist website scan result.") from exc
 
 
-def _build_scan_record(
-    *,
-    target_url: str,
-    security_score: int | None,
-    authorization_confirmed: bool,
-    authorization_text: str,
-    started_at: datetime,
-    completed_at: datetime,
-) -> Scan:
-    scan = Scan()
-
-    scan.target = target_url
-    scan.target_type = TargetType.WEBSITE
-    scan.scan_type = ScanType.WEBSITE_BASIC
-    scan.status = ScanStatus.COMPLETED
-    scan.security_score = _normalize_security_score(security_score)
-    scan.authorization_confirmed = authorization_confirmed
-    scan.authorization_text = authorization_text
-    scan.started_at = started_at
-    scan.completed_at = completed_at
-    scan.error_message = None
-
-    return scan
-
-
-def _build_website_check_record(
-    *,
-    scan_id: int,
+def _build_scan_row(
     target_url: str,
     scan_result: Any,
-) -> WebsiteCheck:
-    ssl_tls = _as_dict(_get_field(scan_result, "ssl_tls"))
-    dns_email_security = _as_dict(_get_field(scan_result, "dns_email_security"))
-    metadata = _as_dict(_get_field(scan_result, "metadata"))
+    raw_scanner_result: Any | None,
+    risk_assessment: Any | None,
+    security_score: int | float | None,
+    authorization_confirmed: bool,
+    authorization_text: str,
+    now: datetime,
+) -> dict[str, Any]:
+    scan_payload = _to_mapping(_compact_plain_data(scan_result))
+    raw_payload = _to_mapping(_compact_plain_data(raw_scanner_result))
+    risk_payload = _risk_payload(
+        explicit_risk_assessment=risk_assessment,
+        scan_payload=scan_payload,
+        raw_payload=raw_payload,
+    )
 
-    original_url = _string_or_default(
+    normalized_url = _string_or_none(
         _first_not_none(
-            _get_field(scan_result, "original_url"),
+            scan_payload.get("normalized_url"),
+            raw_payload.get("normalized_url"),
+            raw_payload.get("final_url"),
             target_url,
-        ),
-        default=target_url,
-    )
-
-    final_url = _string_or_none(
-        _first_not_none(
-            _get_field(scan_result, "final_url"),
-            _get_field(scan_result, "normalized_url"),
-            original_url,
         )
     )
 
-    domain = _string_or_default(
+    score = _coerce_score(
         _first_not_none(
-            _get_field(scan_result, "domain"),
-            _extract_domain(final_url),
-            _extract_domain(original_url),
-        ),
-        default="unknown",
-    )
-
-    security_headers = _as_dict(_get_field(scan_result, "security_headers"))
-
-    website_check = WebsiteCheck()
-
-    website_check.scan_id = scan_id
-    website_check.original_url = original_url
-    website_check.final_url = final_url
-    website_check.domain = domain
-    website_check.is_available = bool(
-        _first_not_none(
-            _get_field(scan_result, "is_available"),
-            _get_field(scan_result, "is_reachable"),
-            False,
+            security_score,
+            risk_payload.get("security_score"),
+            scan_payload.get("security_score"),
         )
     )
-    website_check.http_status_code = _to_int_or_none(
+
+    executive_summary = _string_or_none(
         _first_not_none(
-            _get_field(scan_result, "http_status_code"),
-            _get_field(scan_result, "status_code"),
+            risk_payload.get("executive_summary"),
+            risk_payload.get("summary"),
         )
     )
-    website_check.response_time_ms = _to_int_or_none(
-        _get_field(scan_result, "response_time_ms")
-    )
-    website_check.https_enabled = bool(
-        _first_not_none(
-            _get_field(scan_result, "https_enabled"),
-            _extract_bool_from_mapping(
-                ssl_tls,
-                keys=(
-                    "https_enabled",
-                    "https",
-                    "enabled",
-                ),
+
+    return _compact_mapping(
+        {
+            "target": target_url,
+            "target_url": target_url,
+            "url": target_url,
+            "normalized_url": normalized_url,
+            "scan_type": "website",
+            "type": "website",
+            "module": "website_scanner",
+            "status": "completed",
+            "scan_status": "completed",
+            "security_score": score,
+            "score": score,
+            "risk_score": score,
+            "risk_level": _string_or_none(risk_payload.get("risk_level")),
+            "grade": _string_or_none(risk_payload.get("grade")),
+            "summary": executive_summary,
+            "executive_summary": executive_summary,
+            "authorization_confirmed": authorization_confirmed,
+            "authorized": authorization_confirmed,
+            "authorization_text": authorization_text,
+            "started_at": _first_not_none(
+                raw_payload.get("started_at"),
+                raw_payload.get("scan_started_at"),
+                scan_payload.get("started_at"),
+                now,
             ),
-            _url_uses_https(final_url),
-            False,
-        )
-    )
-
-    website_check.ssl_valid = _extract_bool_from_mapping(
-        ssl_tls,
-        keys=(
-            "ssl_valid",
-            "certificate_valid",
-            "cert_valid",
-            "valid",
-        ),
-    )
-    website_check.ssl_issuer = _string_or_none(
-        _first_not_none(
-            _get_field(ssl_tls, "ssl_issuer"),
-            _get_field(ssl_tls, "issuer"),
-            _get_field(ssl_tls, "certificate_issuer"),
-        )
-    )
-    website_check.ssl_subject = _string_or_none(
-        _first_not_none(
-            _get_field(ssl_tls, "ssl_subject"),
-            _get_field(ssl_tls, "subject"),
-            _get_field(ssl_tls, "certificate_subject"),
-        )
-    )
-    website_check.ssl_expiry_date = _to_datetime_or_none(
-        _first_not_none(
-            _get_field(ssl_tls, "ssl_expiry_date"),
-            _get_field(ssl_tls, "expiry_date"),
-            _get_field(ssl_tls, "expires_at"),
-            _get_field(ssl_tls, "not_after"),
-        )
-    )
-
-    website_check.security_headers = _to_jsonable(security_headers)
-    website_check.dns_records = _to_jsonable(dns_email_security)
-    website_check.spf_found = _extract_bool_from_mapping(
-        dns_email_security,
-        keys=(
-            "spf_found",
-            "spf",
-            "has_spf",
-            "spf_record_found",
-        ),
-    )
-    website_check.dmarc_found = _extract_bool_from_mapping(
-        dns_email_security,
-        keys=(
-            "dmarc_found",
-            "dmarc",
-            "has_dmarc",
-            "dmarc_record_found",
-        ),
-    )
-    website_check.dkim_guidance = _string_or_none(
-        _first_not_none(
-            _find_value_recursively(
-                dns_email_security,
-                keys=(
-                    "dkim_guidance",
-                    "dkim",
-                    "dkim_note",
-                ),
+            "completed_at": _first_not_none(
+                raw_payload.get("completed_at"),
+                raw_payload.get("finished_at"),
+                raw_payload.get("scan_finished_at"),
+                scan_payload.get("completed_at"),
+                scan_payload.get("scanned_at"),
+                now,
             ),
-            _get_field(metadata, "dkim_guidance"),
-        )
+            "scanned_at": _first_not_none(scan_payload.get("scanned_at"), now),
+            "created_at": now,
+            "updated_at": now,
+            "metadata": _compact_mapping(
+                {
+                    "source": "website_scanner_mvp",
+                    "persistence_version": "1.0",
+                    "authorization_confirmed": authorization_confirmed,
+                    "normalized_url": normalized_url,
+                    "risk_engine_version": risk_payload.get("version"),
+                    "coverage": risk_payload.get("coverage"),
+                }
+            ),
+            "raw_result": raw_payload,
+            "raw_scan_result": raw_payload,
+            "scan_result": scan_payload,
+            "result": scan_payload,
+            "result_json": scan_payload,
+            "risk_assessment": risk_payload,
+            "risk_assessment_json": risk_payload,
+        }
     )
-    website_check.technologies_detected = _to_jsonable(
+
+
+def _build_website_check_row(
+    scan_id: Any,
+    target_url: str,
+    scan_result: Any,
+    raw_scanner_result: Any | None,
+    risk_assessment: Any | None,
+    security_score: int | float | None,
+    now: datetime,
+) -> dict[str, Any]:
+    scan_payload = _to_mapping(_compact_plain_data(scan_result))
+    raw_payload = _to_mapping(_compact_plain_data(raw_scanner_result))
+    risk_payload = _risk_payload(
+        explicit_risk_assessment=risk_assessment,
+        scan_payload=scan_payload,
+        raw_payload=raw_payload,
+    )
+
+    availability_payload = _first_mapping(
+        scan_payload,
+        raw_payload,
+        keys=("availability", "availability_result", "availability_check"),
+    )
+    headers_payload = _first_mapping(
+        scan_payload,
+        raw_payload,
+        keys=(
+            "security_headers",
+            "security_header_result",
+            "header_result",
+            "headers_result",
+            "headers",
+        ),
+    )
+    ssl_tls_payload = _first_mapping(
+        scan_payload,
+        raw_payload,
+        keys=("ssl_tls", "ssl_result", "tls_result", "certificate_result"),
+    )
+    dns_email_payload = _first_mapping(
+        scan_payload,
+        raw_payload,
+        keys=(
+            "dns_email_security",
+            "dns_security",
+            "dns_result",
+            "email_security",
+            "dns_email_result",
+        ),
+    )
+
+    score = _coerce_score(
         _first_not_none(
-            _get_field(scan_result, "technologies_detected"),
-            _get_field(metadata, "technologies_detected"),
-            _get_field(metadata, "technologies"),
-        )
-    )
-    website_check.raw_headers = _to_jsonable(
-        _first_not_none(
-            _get_field(scan_result, "raw_headers"),
-            _get_field(metadata, "raw_headers"),
-            _get_field(security_headers, "raw_headers"),
+            security_score,
+            risk_payload.get("security_score"),
+            scan_payload.get("security_score"),
         )
     )
 
-    return website_check
+    reachable = _first_not_none(
+        availability_payload.get("is_reachable"),
+        availability_payload.get("reachable"),
+        availability_payload.get("available"),
+    )
+
+    return _compact_mapping(
+        {
+            "scan_id": scan_id,
+            "target": target_url,
+            "target_url": target_url,
+            "url": target_url,
+            "normalized_url": _string_or_none(
+                _first_not_none(
+                    scan_payload.get("normalized_url"),
+                    raw_payload.get("normalized_url"),
+                    raw_payload.get("final_url"),
+                    target_url,
+                )
+            ),
+            "status": "completed",
+            "scan_status": "completed",
+            "reachable": reachable,
+            "is_reachable": reachable,
+            "http_status_code": _first_not_none(
+                availability_payload.get("status_code"),
+                availability_payload.get("http_status_code"),
+                availability_payload.get("response_status"),
+            ),
+            "response_time_ms": _first_not_none(
+                availability_payload.get("response_time_ms"),
+                availability_payload.get("latency_ms"),
+                availability_payload.get("elapsed_ms"),
+            ),
+            "final_url": _string_or_none(
+                _first_not_none(
+                    availability_payload.get("final_url"),
+                    raw_payload.get("final_url"),
+                    scan_payload.get("normalized_url"),
+                )
+            ),
+            "server": _string_or_none(
+                _first_not_none(
+                    availability_payload.get("server"),
+                    headers_payload.get("server"),
+                )
+            ),
+            "security_score": score,
+            "score": score,
+            "risk_level": _string_or_none(risk_payload.get("risk_level")),
+            "grade": _string_or_none(risk_payload.get("grade")),
+            "security_headers": headers_payload,
+            "headers": headers_payload,
+            "headers_json": headers_payload,
+            "missing_headers": _first_not_none(
+                headers_payload.get("missing_headers"),
+                headers_payload.get("missing"),
+            ),
+            "present_headers": _first_not_none(
+                headers_payload.get("present_headers"),
+                headers_payload.get("present"),
+            ),
+            "has_hsts": _header_is_present(
+                headers_payload,
+                "Strict-Transport-Security",
+            ),
+            "has_csp": _header_is_present(
+                headers_payload,
+                "Content-Security-Policy",
+            ),
+            "has_x_frame_options": _header_is_present(
+                headers_payload,
+                "X-Frame-Options",
+            ),
+            "has_x_content_type_options": _header_is_present(
+                headers_payload,
+                "X-Content-Type-Options",
+            ),
+            "ssl_tls": ssl_tls_payload,
+            "ssl": ssl_tls_payload,
+            "ssl_tls_json": ssl_tls_payload,
+            "https_enabled": _first_not_none(
+                ssl_tls_payload.get("https_enabled"),
+                ssl_tls_payload.get("tls_enabled"),
+                ssl_tls_payload.get("ssl_enabled"),
+            ),
+            "certificate_valid": _first_not_none(
+                ssl_tls_payload.get("certificate_valid"),
+                ssl_tls_payload.get("is_valid"),
+                ssl_tls_payload.get("valid"),
+            ),
+            "certificate_issuer": _string_or_none(
+                _first_not_none(
+                    ssl_tls_payload.get("issuer"),
+                    ssl_tls_payload.get("certificate_issuer"),
+                )
+            ),
+            "certificate_expires_at": _first_not_none(
+                ssl_tls_payload.get("expires_at"),
+                ssl_tls_payload.get("not_after"),
+                ssl_tls_payload.get("valid_until"),
+            ),
+            "dns_email_security": dns_email_payload,
+            "dns_security": dns_email_payload,
+            "dns_json": dns_email_payload,
+            "raw_result": raw_payload,
+            "raw_scan_result": raw_payload,
+            "metadata": _compact_mapping(
+                {
+                    "source": "website_scanner_mvp",
+                    "availability_collected": bool(availability_payload),
+                    "security_headers_collected": bool(headers_payload),
+                    "ssl_tls_collected": bool(ssl_tls_payload),
+                    "dns_email_security_collected": bool(dns_email_payload),
+                    "risk_assessment_collected": bool(risk_payload),
+                }
+            ),
+            "created_at": now,
+            "updated_at": now,
+        }
+    )
 
 
-def _build_finding_records(
-    *,
-    scan_id: int,
+def _build_finding_rows(
+    scan_id: Any,
     risk_assessment: Any | None,
     finding_previews: Sequence[Any] | None,
-) -> list[Finding]:
-    risk_deductions = _extract_risk_deductions(risk_assessment)
+    now: datetime,
+) -> list[dict[str, Any]]:
+    risk_payload = _to_mapping(_compact_plain_data(risk_assessment))
 
-    if risk_deductions:
-        return [
-            _build_finding_from_risk_item(scan_id=scan_id, risk_item=risk_item)
-            for risk_item in risk_deductions
-        ]
+    source_items: list[Any] = [
+        item for item in (finding_previews or []) if _has_meaningful_value(item)
+    ]
 
-    if finding_previews:
-        return [
-            _build_finding_from_preview(scan_id=scan_id, preview=preview)
-            for preview in finding_previews
-        ]
-
-    return []
-
-
-def _build_finding_from_risk_item(
-    *,
-    scan_id: int,
-    risk_item: Any,
-) -> Finding:
-    item = _as_dict(risk_item)
-
-    title = _string_or_default(
-        _first_not_none(
-            _get_field(item, "title"),
-            _get_field(item, "name"),
-            "Website security finding",
-        ),
-        default="Website security finding",
-    )
-
-    category = _map_finding_category(
-        category_value=_get_field(item, "category"),
-        title=title,
-    )
-
-    finding = Finding()
-
-    finding.scan_id = scan_id
-    finding.title = title
-    finding.severity = _map_finding_severity(_get_field(item, "severity"))
-    finding.category = category
-    finding.description = _string_or_default(
-        _first_not_none(
-            _get_field(item, "description"),
-            _get_field(item, "evidence"),
-            _get_field(item, "business_impact"),
-            title,
-        ),
-        default=title,
-    )
-    finding.evidence = _string_or_none(_get_field(item, "evidence"))
-    finding.business_impact = _string_or_none(_get_field(item, "business_impact"))
-    finding.recommendation = _string_or_default(
-        _first_not_none(
-            _get_field(item, "recommendation"),
-            _get_field(item, "remediation"),
-            "Review and remediate this website security weakness.",
-        ),
-        default="Review and remediate this website security weakness.",
-    )
-    finding.owasp_mapping = _string_or_none(
-        _first_not_none(
-            _get_field(item, "owasp_mapping"),
-            _get_field(item, "owasp"),
-            _get_field(item, "owasp_reference"),
+    if not source_items:
+        source_items = _to_list(
+            _first_not_none(
+                risk_payload.get("scoring_deductions"),
+                risk_payload.get("deductions"),
+                risk_payload.get("key_risk_drivers"),
+            )
         )
-    )
-    finding.nist_mapping = _string_or_none(
-        _first_not_none(
-            _get_field(item, "nist_mapping"),
-            _get_field(item, "nist"),
-            _get_field(item, "nist_reference"),
+
+    finding_rows: list[dict[str, Any]] = []
+
+    for item in source_items:
+        item_payload = _to_mapping(_compact_plain_data(item))
+        if not item_payload:
+            continue
+
+        title = _string_or_none(
+            _first_not_none(
+                item_payload.get("title"),
+                item_payload.get("name"),
+                item_payload.get("rule_name"),
+                item_payload.get("driver"),
+            )
         )
-    )
-    finding.mitre_mapping = _string_or_none(
-        _first_not_none(
-            _get_field(item, "mitre_mapping"),
-            _get_field(item, "mitre"),
-            _get_field(item, "mitre_reference"),
+
+        description = _string_or_none(
+            _first_not_none(
+                item_payload.get("description"),
+                item_payload.get("summary"),
+                item_payload.get("business_impact"),
+                title,
+            )
         )
-    )
 
-    return finding
+        if not title and not description:
+            continue
 
+        evidence_payload = _compact_plain_data(item_payload.get("evidence"))
+        standards_payload = _compact_plain_data(
+            _first_not_none(
+                item_payload.get("references"),
+                item_payload.get("standards"),
+                item_payload.get("mappings"),
+            )
+        )
 
-def _build_finding_from_preview(
-    *,
-    scan_id: int,
-    preview: Any,
-) -> Finding:
-    item = _as_dict(preview)
+        metadata_payload = _compact_mapping(
+            {
+                "rule_id": item_payload.get("rule_id"),
+                "deduction_points": item_payload.get("deduction_points"),
+                "detection_method": item_payload.get("detection_method"),
+                "standards": standards_payload,
+            }
+        )
 
-    title = _string_or_default(
-        _first_not_none(
-            _get_field(item, "title"),
-            "Website security finding",
-        ),
-        default="Website security finding",
-    )
+        finding_rows.append(
+            _compact_mapping(
+                {
+                    "scan_id": scan_id,
+                    "title": title or description,
+                    "name": title or description,
+                    "description": description or title,
+                    "severity": _string_or_none(
+                        _first_not_none(
+                            item_payload.get("severity"),
+                            item_payload.get("risk_level"),
+                            "medium",
+                        )
+                    ),
+                    "category": _string_or_none(
+                        _first_not_none(
+                            item_payload.get("category"),
+                            item_payload.get("control_area"),
+                            item_payload.get("type"),
+                            "website_security",
+                        )
+                    ),
+                    "evidence": evidence_payload,
+                    "evidence_json": evidence_payload,
+                    "recommendation": _string_or_none(
+                        _first_not_none(
+                            item_payload.get("recommendation"),
+                            item_payload.get("recommended_action"),
+                            item_payload.get("action"),
+                        )
+                    ),
+                    "business_impact": _string_or_none(
+                        item_payload.get("business_impact")
+                    ),
+                    "detection_method": _string_or_none(
+                        item_payload.get("detection_method")
+                    ),
+                    "reference": standards_payload,
+                    "references": standards_payload,
+                    "standards": standards_payload,
+                    "status": "open",
+                    "source": "risk_engine",
+                    "metadata": metadata_payload,
+                    "details": metadata_payload,
+                    "created_at": now,
+                    "updated_at": now,
+                }
+            )
+        )
 
-    finding = Finding()
-
-    finding.scan_id = scan_id
-    finding.title = title
-    finding.severity = _map_finding_severity(_get_field(item, "severity"))
-    finding.category = _map_finding_category(
-        category_value=_get_field(item, "category"),
-        title=title,
-    )
-    finding.description = _string_or_default(
-        _first_not_none(
-            _get_field(item, "description"),
-            title,
-        ),
-        default=title,
-    )
-    finding.evidence = None
-    finding.business_impact = None
-    finding.recommendation = _string_or_default(
-        _first_not_none(
-            _get_field(item, "recommendation"),
-            "Review and remediate this website security weakness.",
-        ),
-        default="Review and remediate this website security weakness.",
-    )
-    finding.owasp_mapping = None
-    finding.nist_mapping = None
-    finding.mitre_mapping = None
-
-    return finding
-
-
-def _extract_risk_deductions(risk_assessment: Any | None) -> list[Any]:
-    if risk_assessment is None:
-        return []
-
-    deductions = _first_not_none(
-        _get_field(risk_assessment, "scoring_deductions"),
-        _get_field(risk_assessment, "deductions"),
-        _get_field(risk_assessment, "findings"),
-    )
-
-    if isinstance(deductions, list | tuple):
-        return list(deductions)
-
-    return []
-
-
-def _map_finding_severity(value: Any) -> FindingSeverity:
-    normalized_value = str(_to_plain_data(value) or "").strip().lower()
-
-    if normalized_value in {severity.value for severity in FindingSeverity}:
-        return FindingSeverity(normalized_value)
-
-    if "critical" in normalized_value:
-        return FindingSeverity.CRITICAL
-
-    if "high" in normalized_value:
-        return FindingSeverity.HIGH
-
-    if "medium" in normalized_value or "moderate" in normalized_value:
-        return FindingSeverity.MEDIUM
-
-    if "low" in normalized_value:
-        return FindingSeverity.LOW
-
-    if "info" in normalized_value or "informational" in normalized_value:
-        return FindingSeverity.INFO
-
-    return FindingSeverity.LOW
+    return finding_rows
 
 
-def _map_finding_category(
-    *,
-    category_value: Any,
-    title: str,
-) -> FindingCategory:
-    combined_text = f"{category_value or ''} {title}".strip().lower()
-
-    if "header" in combined_text:
-        return FindingCategory.SECURITY_HEADERS
-
-    if (
-        "ssl" in combined_text
-        or "tls" in combined_text
-        or "certificate" in combined_text
-    ):
-        return FindingCategory.SSL_TLS
-
-    if (
-        "email" in combined_text
-        or "spf" in combined_text
-        or "dmarc" in combined_text
-        or "dkim" in combined_text
-    ):
-        return FindingCategory.EMAIL_SECURITY
-
-    if "dns" in combined_text:
-        return FindingCategory.DNS_SECURITY
-
-    if "network" in combined_text:
-        return FindingCategory.NETWORK_EXPOSURE
-
-    if "service" in combined_text or "port" in combined_text:
-        return FindingCategory.SERVICE_EXPOSURE
-
-    if "misconfig" in combined_text or "configuration" in combined_text:
-        return FindingCategory.MISCONFIGURATION
-
-    if "compliance" in combined_text or "standard" in combined_text:
-        return FindingCategory.COMPLIANCE
-
-    return FindingCategory.WEBSITE_SECURITY
-
-
-def _normalize_security_score(value: Any) -> int | None:
-    if value is None:
-        return None
-
+def _reflect_table(
+    metadata: MetaData,
+    bind: Any,
+    table_name: str,
+    required: bool,
+) -> Table | None:
     try:
-        score = int(value)
-    except (TypeError, ValueError):
+        return Table(table_name, metadata, autoload_with=bind)
+    except NoSuchTableError:
+        if required:
+            raise
         return None
 
-    return max(0, min(score, 100))
+
+def _require_table(table: Table | None) -> Table:
+    if table is None:
+        raise RuntimeError("Expected database table to be available.")
+    return table
 
 
-def _extract_bool_from_mapping(
-    data: Mapping[str, Any],
-    *,
-    keys: Sequence[str],
-) -> bool | None:
-    value = _find_value_recursively(data, keys=keys)
+def _insert_row(db: Session, table: Table, payload: Mapping[str, Any]) -> Any:
+    filtered_payload = _filter_payload_for_table(table=table, payload=payload)
+    result = db.execute(insert(table).values(**filtered_payload))
 
-    return _coerce_bool_or_none(value)
+    inserted_primary_key = getattr(result, "inserted_primary_key", None)
+    if inserted_primary_key:
+        primary_key = inserted_primary_key[0]
+        if primary_key is not None:
+            return primary_key
 
+    lastrowid = getattr(result, "lastrowid", None)
+    if lastrowid is not None:
+        return lastrowid
 
-def _find_value_recursively(
-    value: Any,
-    *,
-    keys: Sequence[str],
-) -> Any:
-    normalized_keys = {key.lower() for key in keys}
-
-    if isinstance(value, Mapping):
-        for key, item in value.items():
-            if str(key).lower() in normalized_keys:
-                return item
-
-        for item in value.values():
-            discovered = _find_value_recursively(item, keys=keys)
-
-            if discovered is not None:
-                return discovered
-
-    if isinstance(value, list | tuple):
-        for item in value:
-            discovered = _find_value_recursively(item, keys=keys)
-
-            if discovered is not None:
-                return discovered
-
-    return None
+    return filtered_payload.get("id")
 
 
-def _coerce_bool_or_none(value: Any) -> bool | None:
+def _filter_payload_for_table(
+    table: Table,
+    payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    filtered_payload: dict[str, Any] = {}
+
+    for key, value in payload.items():
+        if key not in table.c:
+            continue
+
+        compact_value = _compact_plain_data(value)
+        if not _has_meaningful_value(compact_value):
+            continue
+
+        column = table.c[key]
+        filtered_payload[key] = _coerce_for_column(
+            value=compact_value,
+            column=column,
+        )
+
+    return filtered_payload
+
+
+def _coerce_for_column(value: Any, column: Column[Any]) -> Any:
     value = _to_plain_data(value)
+    column_type = column.type
 
-    if value is None:
+    enum_value = _coerce_enum_for_column(value=value, column_type=column_type)
+    if enum_value is not None:
+        return enum_value
+
+    if isinstance(value, Enum):
+        value = value.value
+
+    if isinstance(value, (dict, list)):
+        if isinstance(column_type, JSON):
+            return value
+        return json.dumps(value, ensure_ascii=False, default=str)
+
+    if isinstance(value, (datetime, date)):
+        if isinstance(column_type, (DateTime, Date)):
+            return value
+        return value.isoformat()
+
+    if isinstance(column_type, (String, Text)) and not isinstance(
+        value,
+        (str, int, float, bool),
+    ):
+        return json.dumps(value, ensure_ascii=False, default=str)
+
+    return value
+
+
+def _coerce_enum_for_column(value: Any, column_type: Any) -> Any | None:
+    if not isinstance(column_type, SqlEnum):
         return None
 
-    if isinstance(value, bool):
-        return value
+    enum_class = getattr(column_type, "enum_class", None)
+    if enum_class is not None:
+        if isinstance(value, enum_class):
+            return value
 
-    if isinstance(value, int | float):
-        return bool(value)
+        if isinstance(value, Enum):
+            value = value.value
 
-    if isinstance(value, Mapping):
-        for key in ("present", "found", "enabled", "valid", "configured", "exists"):
-            if key in value:
-                return _coerce_bool_or_none(value[key])
+        if isinstance(value, str):
+            for candidate in (value, value.upper(), value.lower()):
+                try:
+                    return enum_class(candidate)
+                except ValueError:
+                    pass
 
-        return None
+                try:
+                    return enum_class[candidate]
+                except KeyError:
+                    pass
+
+    allowed_values = list(getattr(column_type, "enums", []) or [])
+    if isinstance(value, Enum):
+        value = value.value
 
     if isinstance(value, str):
-        normalized_value = value.strip().lower()
-
-        if normalized_value in {"true", "yes", "y", "1", "present", "found", "valid"}:
-            return True
-
-        if normalized_value in {
-            "false",
-            "no",
-            "n",
-            "0",
-            "missing",
-            "not found",
-            "invalid",
-            "none",
-            "",
-        }:
-            return False
-
-        return True
+        for candidate in (value, value.upper(), value.lower()):
+            if candidate in allowed_values:
+                return candidate
 
     return None
 
 
-def _to_datetime_or_none(value: Any) -> datetime | None:
-    plain_value = _to_plain_data(value)
+def _risk_payload(
+    explicit_risk_assessment: Any | None,
+    scan_payload: Mapping[str, Any],
+    raw_payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    explicit_payload = _to_mapping(_compact_plain_data(explicit_risk_assessment))
+    if explicit_payload:
+        return explicit_payload
 
-    if isinstance(plain_value, datetime):
-        return plain_value
+    scan_risk_payload = _to_mapping(scan_payload.get("risk_assessment"))
+    if scan_risk_payload:
+        return scan_risk_payload
 
-    if not isinstance(plain_value, str):
-        return None
-
-    normalized_value = plain_value.strip()
-
-    if not normalized_value:
-        return None
-
-    if normalized_value.endswith("Z"):
-        normalized_value = normalized_value[:-1] + "+00:00"
-
-    try:
-        return datetime.fromisoformat(normalized_value)
-    except ValueError:
-        return None
-
-
-def _as_dict(value: Any) -> dict[str, Any]:
-    plain_data = _to_plain_data(value)
-
-    if isinstance(plain_data, Mapping):
-        return {str(key): item for key, item in plain_data.items()}
+    raw_risk_payload = _to_mapping(raw_payload.get("risk_assessment"))
+    if raw_risk_payload:
+        return raw_risk_payload
 
     return {}
 
 
-def _to_jsonable(value: Any) -> Any:
-    plain_data = _to_plain_data(value)
+def _first_mapping(
+    *containers: Mapping[str, Any],
+    keys: tuple[str, ...],
+) -> dict[str, Any]:
+    for container in containers:
+        if not isinstance(container, Mapping):
+            continue
 
-    if isinstance(plain_data, datetime):
-        return plain_data.isoformat()
+        for key in keys:
+            value = _compact_plain_data(container.get(key))
+            if isinstance(value, Mapping) and value:
+                return dict(value)
 
-    if isinstance(plain_data, Enum):
-        return plain_data.value
+    return {}
 
-    if isinstance(plain_data, Mapping):
-        return {str(key): _to_jsonable(item) for key, item in plain_data.items()}
 
-    if isinstance(plain_data, list):
-        return [_to_jsonable(item) for item in plain_data]
+def _header_is_present(
+    headers_payload: Mapping[str, Any],
+    header_name: str,
+) -> bool | None:
+    if not headers_payload:
+        return None
 
-    if isinstance(plain_data, tuple):
-        return [_to_jsonable(item) for item in plain_data]
+    lowered_name = header_name.lower()
 
-    return plain_data
+    present_headers = _to_list(
+        _first_not_none(
+            headers_payload.get("present_headers"),
+            headers_payload.get("present"),
+        )
+    )
+    for present_header in present_headers:
+        if str(present_header).lower() == lowered_name:
+            return True
+
+    missing_headers = _to_list(
+        _first_not_none(
+            headers_payload.get("missing_headers"),
+            headers_payload.get("missing"),
+        )
+    )
+    for missing_header in missing_headers:
+        if str(missing_header).lower() == lowered_name:
+            return False
+
+    header_sections = (
+        headers_payload.get("headers"),
+        headers_payload.get("raw"),
+        headers_payload.get("observed_headers"),
+        headers_payload.get("security_headers"),
+    )
+
+    for section in header_sections:
+        section_payload = _to_mapping(section)
+        if not section_payload:
+            continue
+
+        for key, value in section_payload.items():
+            if str(key).lower() != lowered_name:
+                continue
+
+            if isinstance(value, Mapping):
+                return bool(
+                    _first_not_none(
+                        value.get("present"),
+                        value.get("is_present"),
+                        value.get("exists"),
+                        True,
+                    )
+                )
+
+            return bool(value)
+
+    return None
 
 
 def _to_plain_data(value: Any) -> Any:
+    """
+    Convert dataclasses, Pydantic models, mappings, iterables, objects with
+    __dict__, and objects with __slots__ into JSON-friendly plain data.
+
+    This intentionally uses safe getattr(...) calls for dynamic attributes such
+    as model_dump, dict, and __slots__ to avoid Pylance/Pydantic issues.
+    """
+
     if value is None:
         return None
 
     if isinstance(value, Enum):
         return value.value
 
-    if isinstance(value, datetime):
+    if isinstance(value, (str, int, float, bool)):
         return value
+
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+
+    if is_dataclass(value) and not isinstance(value, type):
+        return _compact_plain_data(asdict(value))
 
     model_dump = getattr(value, "model_dump", None)
     if callable(model_dump):
-        return _to_plain_data(model_dump())
+        try:
+            return _compact_plain_data(model_dump(mode="json"))
+        except TypeError:
+            return _compact_plain_data(model_dump())
 
-    dict_method = getattr(value, "dict", None)
-    if callable(dict_method):
-        return _to_plain_data(dict_method())
+    legacy_dict = getattr(value, "dict", None)
+    if callable(legacy_dict):
+        try:
+            return _compact_plain_data(legacy_dict())
+        except TypeError:
+            pass
 
     if isinstance(value, Mapping):
-        return {str(key): _to_plain_data(item) for key, item in value.items()}
+        return _compact_mapping(
+            {str(key): _to_plain_data(item) for key, item in value.items()}
+        )
 
-    if isinstance(value, list):
-        return [_to_plain_data(item) for item in value]
+    if isinstance(value, (list, tuple, set)):
+        return [
+            item
+            for item in (_to_plain_data(item) for item in value)
+            if _has_meaningful_value(item)
+        ]
 
-    if isinstance(value, tuple):
-        return [_to_plain_data(item) for item in value]
+    instance_dict = getattr(value, "__dict__", None)
+    if isinstance(instance_dict, Mapping):
+        return _compact_mapping(
+            {
+                str(key): _to_plain_data(item)
+                for key, item in instance_dict.items()
+                if not str(key).startswith("_")
+            }
+        )
 
-    if hasattr(value, "__dict__"):
-        return {
-            key: _to_plain_data(item)
-            for key, item in vars(value).items()
-            if not key.startswith("_")
-        }
+    slots = getattr(value, "__slots__", None)
+    if slots:
+        slot_names = [slots] if isinstance(slots, str) else list(slots)
+        return _compact_mapping(
+            {
+                str(slot_name): _to_plain_data(getattr(value, slot_name, None))
+                for slot_name in slot_names
+                if not str(slot_name).startswith("_")
+            }
+        )
 
     return value
 
 
-def _get_field(value: Any, name: str) -> Any:
+def _compact_plain_data(value: Any) -> Any:
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value if _has_meaningful_value(value) else None
+
+    plain_value = _to_plain_data(value)
+
+    if isinstance(plain_value, Mapping):
+        return _compact_mapping(plain_value) or None
+
+    if isinstance(plain_value, list):
+        compacted_list = [
+            _compact_plain_data(item)
+            for item in plain_value
+            if _has_meaningful_value(item)
+        ]
+        return [
+            item for item in compacted_list if _has_meaningful_value(item)
+        ] or None
+
+    return plain_value if _has_meaningful_value(plain_value) else None
+
+
+def _compact_mapping(mapping: Mapping[str, Any]) -> dict[str, Any]:
+    compacted: dict[str, Any] = {}
+
+    for key, value in mapping.items():
+        if not _has_meaningful_value(value):
+            continue
+
+        compacted_value = _compact_plain_data(value)
+        if not _has_meaningful_value(compacted_value):
+            continue
+
+        compacted[str(key)] = compacted_value
+
+    return compacted
+
+
+def _to_mapping(value: Any) -> dict[str, Any]:
+    plain_value = _compact_plain_data(value)
+
+    if isinstance(plain_value, Mapping):
+        return dict(plain_value)
+
+    return {}
+
+
+def _to_list(value: Any) -> list[Any]:
     if value is None:
-        return None
+        return []
 
-    if isinstance(value, Mapping):
-        return value.get(name)
+    if isinstance(value, list):
+        return value
 
-    return getattr(value, name, None)
+    if isinstance(value, (tuple, set)):
+        return list(value)
+
+    return [value]
 
 
 def _first_not_none(*values: Any) -> Any:
@@ -741,58 +906,43 @@ def _first_not_none(*values: Any) -> Any:
 
 
 def _string_or_none(value: Any) -> str | None:
-    plain_value = _to_plain_data(value)
-
-    if plain_value is None:
+    if value is None:
         return None
 
-    if isinstance(plain_value, str):
-        return plain_value
+    if isinstance(value, Enum):
+        value = value.value
 
-    if isinstance(plain_value, Enum):
-        return plain_value.value
-
-    return str(plain_value)
+    value_as_string = str(value).strip()
+    return value_as_string or None
 
 
-def _string_or_default(value: Any, *, default: str) -> str:
-    text_value = _string_or_none(value)
-
-    if text_value is None or not text_value.strip():
-        return default
-
-    return text_value
-
-
-def _to_int_or_none(value: Any) -> int | None:
-    plain_value = _to_plain_data(value)
-
-    if plain_value is None:
+def _coerce_score(value: Any) -> int | None:
+    if value is None:
         return None
 
     try:
-        return int(plain_value)
+        numeric_value = int(round(float(value)))
     except (TypeError, ValueError):
         return None
 
-
-def _extract_domain(url: str | None) -> str | None:
-    if not url:
-        return None
-
-    parsed_url = urlparse(url)
-
-    if parsed_url.netloc:
-        return parsed_url.netloc
-
-    if parsed_url.path and "." in parsed_url.path:
-        return parsed_url.path.split("/")[0]
-
-    return None
+    return max(0, min(100, numeric_value))
 
 
-def _url_uses_https(url: str | None) -> bool:
-    if not url:
+def _has_meaningful_value(value: Any) -> bool:
+    if value is None:
         return False
 
-    return urlparse(url).scheme.lower() == "https"
+    if isinstance(value, str):
+        return bool(value.strip())
+
+    if isinstance(value, Mapping):
+        return bool(value)
+
+    if isinstance(value, (list, tuple, set)):
+        return bool(value)
+
+    return True
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
