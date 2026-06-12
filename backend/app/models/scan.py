@@ -83,6 +83,25 @@ class Scan(Base, TimestampMixin):
         index=True,
     )
 
+    user_id: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        index=True,
+        comment="Authenticated user ID that started this scan.",
+    )
+
+    user_email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+        comment="Snapshot of authenticated user email when the scan was started.",
+    )
+
+    user_full_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Snapshot of authenticated user full name when the scan was started.",
+    )
     target: Mapped[str] = mapped_column(
         String(500),
         nullable=False,

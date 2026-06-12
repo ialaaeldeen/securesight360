@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import Session
 
+from app.core.admin_auth import AuthenticatedUser, require_admin_user, require_authenticated_user
 from app.database.session import get_db
 from app.scanners.website.website_scanner import WebsiteScanner
 from app.schemas.website import (
@@ -36,6 +37,7 @@ router = APIRouter(prefix="/website", tags=["Website Scanner"])
 def scan_website(
     payload: WebsiteScanRequest,
     db: Session = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(require_authenticated_user),
 ) -> WebsiteScanResponse:
     """
     Run the Website Scanner MVP and persist the completed result.
@@ -95,6 +97,29 @@ def scan_website(
             )
             or DEFAULT_AUTHORIZATION_TEXT,
         )
+
+        from sqlalchemy import text as sql_text
+
+        db.execute(
+            sql_text(
+                """
+                UPDATE scans
+                SET
+                    user_id = :user_id,
+                    user_email = :user_email,
+                    user_full_name = :user_full_name,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = :scan_id
+                """
+            ),
+            {
+                "scan_id": persisted_scan.id,
+                "user_id": current_user.id,
+                "user_email": current_user.email,
+                "user_full_name": current_user.full_name,
+            },
+        )
+        db.commit()
     except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1088,5 +1113,355 @@ def _has_meaningful_value(value: Any) -> bool:
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+# === SecureSight360 Website Scan History API START ===
+
+
+def _history_safe_json_loads(value):
+    """
+    Safely decode JSON-like database values without breaking normal strings.
+    """
+    import json
+    from datetime import date, datetime
+    from decimal import Decimal
+    from enum import Enum
+
+    if value is None:
+        return None
+
+    if isinstance(value, Enum):
+        return value.value
+
+    if isinstance(value, Decimal):
+        return float(value)
+
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+
+    if isinstance(value, bytes):
+        try:
+            value = value.decode("utf-8")
+        except UnicodeDecodeError:
+            return str(value)
+
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+
+        if stripped.startswith(("{", "[")):
+            try:
+                return json.loads(stripped)
+            except json.JSONDecodeError:
+                return value
+
+        return value
+
+    return value
+
+
+def _history_clean_payload(value):
+    """
+    Convert database rows and nested values into frontend-safe JSON.
+    """
+    from datetime import date, datetime
+    from decimal import Decimal
+    from enum import Enum
+
+    value = _history_safe_json_loads(value)
+
+    if value is None:
+        return None
+
+    if isinstance(value, Enum):
+        return value.value
+
+    if isinstance(value, Decimal):
+        return float(value)
+
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+
+    if isinstance(value, dict):
+        cleaned = {}
+        for key, item in value.items():
+            cleaned_value = _history_clean_payload(item)
+            if cleaned_value not in (None, "", [], {}):
+                cleaned[str(key)] = cleaned_value
+        return cleaned
+
+    if isinstance(value, (list, tuple, set)):
+        cleaned_list = []
+        for item in value:
+            cleaned_value = _history_clean_payload(item)
+            if cleaned_value not in (None, "", [], {}):
+                cleaned_list.append(cleaned_value)
+        return cleaned_list
+
+    return value
+
+
+def _history_row_to_dict(row):
+    if row is None:
+        return {}
+
+    raw = dict(row)
+    return {
+        key: _history_clean_payload(value)
+        for key, value in raw.items()
+        if _history_clean_payload(value) not in (None, "", [], {})
+    }
+
+
+def _history_as_number(value):
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _history_as_text(value, default="Unknown"):
+    if value is None:
+        return default
+
+    text_value = str(value).strip()
+    return text_value if text_value else default
+
+
+def _history_score_to_risk_level(score):
+    numeric_score = _history_as_number(score)
+
+    if numeric_score is None:
+        return "unknown"
+
+    if numeric_score >= 85:
+        return "low"
+
+    if numeric_score >= 70:
+        return "medium"
+
+    if numeric_score >= 50:
+        return "high"
+
+    return "critical"
+
+
+def _history_score_to_grade(score):
+    numeric_score = _history_as_number(score)
+
+    if numeric_score is None:
+        return "N/A"
+
+    if numeric_score >= 90:
+        return "A"
+
+    if numeric_score >= 80:
+        return "B"
+
+    if numeric_score >= 70:
+        return "C"
+
+    if numeric_score >= 60:
+        return "D"
+
+    return "F"
+
+
+def _history_build_item(row, findings_count=None):
+    row_data = _history_row_to_dict(row)
+
+    scan_id = row_data.get("id") or row_data.get("scan_id")
+    security_score = _history_as_number(row_data.get("security_score"))
+
+    resolved_findings_count = findings_count
+    if resolved_findings_count is None:
+        resolved_findings_count = row_data.get("findings_count", 0)
+
+    return {
+        "scan_id": scan_id,
+        "target_url": row_data.get("target")
+        or row_data.get("target_url")
+        or row_data.get("original_url")
+        or "Unknown target",
+        "target": row_data.get("target")
+        or row_data.get("target_url")
+        or row_data.get("original_url")
+        or "Unknown target",
+        "scan_type": row_data.get("scan_type", "website_basic"),
+        "target_type": row_data.get("target_type", "website"),
+        "status": _history_as_text(row_data.get("status"), "unknown").lower(),
+        "security_score": security_score,
+        "risk_level": _history_score_to_risk_level(security_score),
+        "grade": _history_score_to_grade(security_score),
+        "findings_count": int(resolved_findings_count or 0),
+        "authorization_confirmed": bool(row_data.get("authorization_confirmed", False)),
+        "started_at": row_data.get("started_at"),
+        "completed_at": row_data.get("completed_at"),
+        "error_message": row_data.get("error_message"),
+    }
+
+
+def _history_build_finding(row):
+    row_data = _history_row_to_dict(row)
+
+    return {
+        "id": row_data.get("id"),
+        "title": row_data.get("title")
+        or row_data.get("name")
+        or row_data.get("rule_id")
+        or "Security finding",
+        "severity": _history_as_text(row_data.get("severity"), "informational").lower(),
+        "category": row_data.get("category") or row_data.get("finding_type") or "Website Security",
+        "description": row_data.get("description") or row_data.get("summary"),
+        "business_impact": row_data.get("business_impact") or row_data.get("impact"),
+        "recommendation": row_data.get("recommendation") or row_data.get("remediation"),
+        "evidence": row_data.get("evidence"),
+        "status": row_data.get("status"),
+        "created_at": row_data.get("created_at"),
+    }
+
+
+def _history_fetch_scan_rows(db, limit, offset):
+    from sqlalchemy import text
+
+    query = text(
+        """
+        SELECT
+            s.*,
+            COALESCE(f.findings_count, 0) AS findings_count
+        FROM scans s
+        LEFT JOIN (
+            SELECT scan_id, COUNT(*) AS findings_count
+            FROM findings
+            GROUP BY scan_id
+        ) f ON f.scan_id = s.id
+        WHERE
+            LOWER(CAST(COALESCE(s.target_type, '') AS TEXT)) LIKE '%website%'
+            OR LOWER(CAST(COALESCE(s.scan_type, '') AS TEXT)) LIKE '%website%'
+        ORDER BY COALESCE(s.completed_at, s.started_at) DESC
+        LIMIT :limit OFFSET :offset
+        """
+    )
+
+    rows = db.execute(query, {"limit": limit, "offset": offset}).mappings().all()
+
+    if rows:
+        return rows
+
+    fallback_query = text(
+        """
+        SELECT
+            s.*,
+            COALESCE(f.findings_count, 0) AS findings_count
+        FROM scans s
+        LEFT JOIN (
+            SELECT scan_id, COUNT(*) AS findings_count
+            FROM findings
+            GROUP BY scan_id
+        ) f ON f.scan_id = s.id
+        ORDER BY COALESCE(s.completed_at, s.started_at) DESC
+        LIMIT :limit OFFSET :offset
+        """
+    )
+
+    return db.execute(fallback_query, {"limit": limit, "offset": offset}).mappings().all()
+
+
+@router.get(
+    "/history",
+    summary="List website scan history",
+)
+def get_website_scan_history(
+    limit: int = 25,
+    offset: int = 0,
+    db=Depends(get_db),
+    _admin_user=Depends(require_admin_user),
+):
+    """
+    Return recent website scans stored in the database.
+    This endpoint is designed for the Scan History frontend page.
+    """
+    safe_limit = max(1, min(limit, 100))
+    safe_offset = max(0, offset)
+
+    rows = _history_fetch_scan_rows(db=db, limit=safe_limit, offset=safe_offset)
+    items = [_history_build_item(row) for row in rows]
+
+    return {
+        "status": "success",
+        "count": len(items),
+        "limit": safe_limit,
+        "offset": safe_offset,
+        "items": items,
+        "history": items,
+    }
+
+
+@router.get(
+    "/history/{scan_id}",
+    summary="Get website scan history details",
+)
+def get_website_scan_history_detail(
+    scan_id: int,
+    db=Depends(get_db),
+    _admin_user=Depends(require_admin_user),
+):
+    """
+    Return one stored website scan with website check details and findings.
+    """
+    from fastapi import HTTPException
+    from sqlalchemy import text
+
+    scan_row = db.execute(
+        text("SELECT * FROM scans WHERE id = :scan_id"),
+        {"scan_id": scan_id},
+    ).mappings().first()
+
+    if scan_row is None:
+        raise HTTPException(status_code=404, detail="Website scan was not found.")
+
+    website_check_rows = db.execute(
+        text(
+            """
+            SELECT *
+            FROM website_checks
+            WHERE scan_id = :scan_id
+            ORDER BY id DESC
+            """
+        ),
+        {"scan_id": scan_id},
+    ).mappings().all()
+
+    finding_rows = db.execute(
+        text(
+            """
+            SELECT *
+            FROM findings
+            WHERE scan_id = :scan_id
+            ORDER BY id ASC
+            """
+        ),
+        {"scan_id": scan_id},
+    ).mappings().all()
+
+    website_checks = [_history_row_to_dict(row) for row in website_check_rows]
+    findings = [_history_build_finding(row) for row in finding_rows]
+
+    return {
+        "status": "success",
+        "scan": _history_build_item(scan_row, findings_count=len(findings)),
+        "raw_scan": _history_row_to_dict(scan_row),
+        "website_check": website_checks[0] if website_checks else None,
+        "website_checks": website_checks,
+        "findings": findings,
+        "findings_count": len(findings),
+    }
+
+
+# === SecureSight360 Website Scan History API END ===
+
 
 

@@ -1,20 +1,51 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  Shield, ShieldCheck, Lock, Mail, User, ArrowRight, KeyRound, Eye, EyeOff,
-  Radar, Network, BarChart3, Globe, CheckCircle2, Sparkles, Fingerprint, Building2, AlertTriangle, Check, FileText, ChevronDown, Facebook, Instagram, Linkedin, Phone, MapPin, Send, Twitter, HelpCircle,
+  ShieldCheck, Lock, Mail, User, ArrowRight, KeyRound, Eye, EyeOff,
+  Radar, BarChart3, Globe, CheckCircle2, Sparkles, Building2, AlertTriangle, Check, FileText, ChevronDown, Facebook, Instagram, Linkedin, Phone, MapPin, Send, Twitter, HelpCircle,
 } from "lucide-react";
 import cs360Logo from "@/assets/cs360-logo.png";
+import { useAuth } from "@/lib/auth";
 
-const FREE_EMAIL_DOMAINS = new Set([
-  "gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "live.com",
-  "icloud.com", "aol.com", "proton.me", "protonmail.com", "mail.com", "yandex.com",
+type View = "splash" | "login" | "signup";
+
+const BASIC_EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+const PERSONAL_EMAIL_DOMAINS = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "yahoo.com",
+  "yahoo.co.uk",
+  "outlook.com",
+  "hotmail.com",
+  "live.com",
+  "msn.com",
+  "icloud.com",
+  "me.com",
+  "mac.com",
+  "aol.com",
+  "proton.me",
+  "protonmail.com",
+  "mail.com",
+  "zoho.com",
+  "yandex.com",
+  "gmx.com",
 ]);
-function domainOf(email: string): string | null {
-  const m = email.trim().toLowerCase().match(/^[^@\s]+@([^@\s]+\.[^@\s]+)$/);
-  return m ? m[1] : null;
-}
 
-type View = "splash" | "login" | "signup" | "2fa";
+function getBusinessEmailError(email: string): string | null {
+  const normalized = email.trim().toLowerCase();
+
+  if (!normalized || !BASIC_EMAIL_REGEX.test(normalized)) {
+    return null;
+  }
+
+  const domain = normalized.split("@").pop() || "";
+
+  if (PERSONAL_EMAIL_DOMAINS.has(domain)) {
+    return "Please use your company/work email address. Personal email providers such as Gmail, Yahoo, Outlook, and Hotmail are not allowed.";
+  }
+
+  return null;
+}
 
 interface Props {
   onAuthenticated: () => void;
@@ -22,7 +53,6 @@ interface Props {
 
 export function Auth({ onAuthenticated }: Props) {
   const [view, setView] = useState<View>("splash");
-  const [email, setEmail] = useState("");
 
   // Whenever the auth screen mounts (fresh session / after logout), clear any
   // previously-registered company domain so the next signup binds strictly to
@@ -86,22 +116,18 @@ export function Auth({ onAuthenticated }: Props) {
           {view === "splash" && (
             <Splash onLogin={() => setView("login")} onSignup={() => setView("signup")} />
           )}
-          {view === "login" && (
-            <Login
-              onSubmit={(em) => { setEmail(em); setView("2fa"); }}
-              onSignup={() => setView("signup")}
-            />
-          )}
-          {view === "signup" && (
-            <Signup
-              onSubmit={(em) => { setEmail(em); setView("2fa"); }}
-              onVerified={onAuthenticated}
-              onLogin={() => setView("login")}
-            />
-          )}
-          {view === "2fa" && (
-            <TwoFA email={email} onVerified={onAuthenticated} onBack={() => setView("login")} />
-          )}
+        {view === "login" && (
+  <Login
+    onAuthenticated={onAuthenticated}
+    onSignup={() => setView("signup")}
+  />
+)}
+{view === "signup" && (
+  <Signup
+    onVerified={onAuthenticated}
+    onLogin={() => setView("login")}
+  />
+)}
         </div>
 
         <SiteFooter onHome={() => setView("splash")} onLogin={() => setView("login")} onSignup={() => setView("signup")} />
@@ -663,252 +689,299 @@ function Field({ icon: Icon, type = "text", value, onChange, placeholder, autoCo
   );
 }
 
-function Login({ onSubmit, onSignup }: { onSubmit: (email: string) => void; onSignup: () => void }) {
+
+function Login({
+  onAuthenticated,
+  onSignup,
+}: {
+  onAuthenticated: () => void;
+  onSignup: () => void;
+}) {
+  const { login } = useAuth() as any;
+
   const [email, setEmail] = useState("");
-  const [pwd, setPwd] = useState("");
-  const [show, setShow] = useState(false);
-  const valid = /.+@.+\..+/.test(email) && pwd.length >= 6;
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const validEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const valid = validEmail && password.length > 0;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!valid || submitting) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      await login(email.trim(), password);
+      onAuthenticated();
+    } catch (err: any) {
+      setError(err?.message || "Login failed. Please check your email and password.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <AuthShell icon={Lock} title="Welcome back" subtitle="Sign in to your secure console">
-      <form onSubmit={(e) => { e.preventDefault(); if (valid) onSubmit(email); }} className="space-y-4">
-        <Field icon={Mail} type="email" value={email} onChange={setEmail} placeholder="you@company.com" autoComplete="email" />
-        <div className="relative">
-          <Field icon={KeyRound} type={show ? "text" : "password"} value={pwd} onChange={setPwd} placeholder="Password" autoComplete="current-password" />
-          <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+    <AuthShell
+      icon={Lock}
+      title="Sign in"
+      subtitle="Access your SecureSight360 console"
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <Field
+          icon={Mail}
+          type="email"
+          value={email}
+          onChange={setEmail}
+          placeholder="you@example.com"
+          autoComplete="email"
+        />
+
+        {email && !validEmail && (
+          <p className="mt-1.5 text-xs text-warning flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Please enter a valid email address.
+          </p>
+        )}
+
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2.5 focus-within:border-cyan/60 focus-within:ring-2 focus-within:ring-cyan/20">
+          <KeyRound className="h-4 w-4 text-muted-foreground" />
+          <input
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            autoComplete="current-password"
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((value) => !value)}
+            className="text-muted-foreground hover:text-foreground transition"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
-        <div className="flex items-center justify-between text-xs">
-          <label className="flex items-center gap-2 text-muted-foreground">
-            <input type="checkbox" className="accent-[#06B6D4]" /> Remember me
-          </label>
-          <button type="button" className="text-cyan hover:underline">Forgot password?</button>
-        </div>
+
+        {error && (
+          <div className="rounded-lg border border-warning/30 bg-warning/10 text-warning text-xs px-3 py-2 flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {error}
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={!valid}
+          disabled={!valid || submitting}
           className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition"
         >
-          Continue to 2FA <ArrowRight className="h-4 w-4" />
+          {submitting ? "Signing in…" : "Sign in"}
+          <ArrowRight className="h-4 w-4" />
         </button>
+
         <p className="text-center text-xs text-muted-foreground">
-          New here? <button type="button" onClick={onSignup} className="text-cyan hover:underline">Create an account</button>
+          Do not have an account?{" "}
+          <button
+            type="button"
+            onClick={onSignup}
+            className="text-cyan hover:underline"
+          >
+            Create account
+          </button>
         </p>
       </form>
     </AuthShell>
   );
 }
 
-function Signup({ onSubmit, onVerified, onLogin }: { onSubmit: (email: string) => void; onVerified: () => void; onLogin: () => void }) {
-  const [step, setStep] = useState<1 | 2>(1);
+function Signup({
+  onVerified,
+  onLogin,
+}: {
+  onVerified: () => void;
+  onLogin: () => void;
+}) {
+  const { register } = useAuth() as any;
+
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [agree, setAgree] = useState(false);
-
-  const domain = useMemo(() => domainOf(email), [email]);
-  const isWorkEmail = !!domain && !FREE_EMAIL_DOMAINS.has(domain);
-  const step1Valid = name.trim().length > 1 && company.trim().length > 1 && !!domain && isWorkEmail && pwd.length >= 8 && agree;
-
-  // Step 2 — email code verification (proves user controls the company mailbox => company domain)
-  const [code, setCode] = useState(["", "", "", "", "", ""]);
-  const [sentAt, setSentAt] = useState<number | null>(null);
-  const [resendIn, setResendIn] = useState(30);
-  const [verifying, setVerifying] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (step !== 2) return;
-    if (sentAt === null) setSentAt(Date.now());
-  }, [step, sentAt]);
+  const validEmail = BASIC_EMAIL_REGEX.test(email.trim());
+  const businessEmailError = getBusinessEmailError(email);
+  const validBusinessEmail = validEmail && !businessEmailError;
+  const businessEmailDomain = validBusinessEmail
+    ? email.trim().toLowerCase().split("@").pop() || ""
+    : "";
 
-  useEffect(() => {
-    if (step !== 2 || resendIn <= 0) return;
-    const t = setTimeout(() => setResendIn(s => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [resendIn, step]);
+  const valid =
+    name.trim().length > 1 &&
+    company.trim().length > 1 &&
+    validBusinessEmail &&
+    pwd.length >= 8 &&
+    agree;
 
-  function updateCode(i: number, v: string) {
-    const ch = v.replace(/\D/g, "").slice(-1);
-    const next = [...code]; next[i] = ch; setCode(next);
-    if (ch) document.getElementById(`vcode-${i + 1}`)?.focus();
-  }
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  function completeSignup() {
-    if (!code.every(c => /\d/.test(c))) { setError("Enter the full 6-digit code."); return; }
-    setVerifying(true); setError(null);
-    setTimeout(() => {
+    if (!valid || submitting) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const user = await register({
+        email: email.trim(),
+        password: pwd,
+        full_name: name.trim(),
+        company_name: company.trim(),
+      });
+
       try {
-        if (domain) {
-          localStorage.setItem("cs360-company-domain", domain);
-          localStorage.setItem("cs360-company-name", company);
-          localStorage.setItem("cs360-user-name", name);
-          localStorage.setItem("cs360-user-email", email);
-          localStorage.setItem("cs360-registered-at", new Date().toISOString());
-          const verified = JSON.parse(localStorage.getItem("cs360-verified-hosts") || "[]");
-          if (!verified.includes(domain)) verified.push(domain);
-          localStorage.setItem("cs360-verified-hosts", JSON.stringify(verified));
-        }
+        localStorage.setItem("cs360-company-name", company.trim());
+        localStorage.setItem("cs360-user-name", name.trim());
+        localStorage.setItem("cs360-user-email", user.email);
+        localStorage.setItem("cs360-registered-at", new Date().toISOString());
       } catch {}
+
       onVerified();
-    }, 700);
-  }
-
-  if (step === 2) {
-    return (
-      <AuthShell icon={Building2} title="Verify your company email" subtitle={`We sent a 6-digit code to ${email}`}>
-        <form onSubmit={(e) => { e.preventDefault(); completeSignup(); }} className="space-y-5">
-          <div className="rounded-xl border border-cyan/20 bg-cyan/5 px-3 py-2.5 text-xs text-soft/90 flex items-start gap-2">
-            <ShieldCheck className="h-4 w-4 text-cyan mt-0.5 shrink-0" />
-            <span>
-              This one-time check proves you belong to <span className="text-cyan font-medium">{domain}</span>.
-              Once verified, you can scan any site on that domain without extra steps.
-            </span>
-          </div>
-          <div className="grid grid-cols-6 gap-2">
-            {code.map((c, i) => (
-              <input
-                key={i}
-                id={`vcode-${i}`}
-                value={c}
-                onChange={(e) => updateCode(i, e.target.value)}
-                inputMode="numeric"
-                maxLength={1}
-                className="h-12 rounded-xl border border-border bg-surface/60 text-center text-lg font-semibold outline-none focus:border-cyan/60 focus:ring-2 focus:ring-cyan/20"
-              />
-            ))}
-          </div>
-          {error && (
-            <div className="rounded-lg border border-warning/30 bg-warning/10 text-warning text-xs px-3 py-2 flex items-center gap-2">
-              <AlertTriangle className="h-3.5 w-3.5" /> {error}
-            </div>
-          )}
-          <button
-            type="submit"
-            disabled={verifying}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan disabled:opacity-50 hover:brightness-110 transition"
-          >
-            {verifying ? <span className="h-4 w-4 rounded-full border-2 border-[#021016]/40 border-t-[#021016] animate-spin" /> : <Check className="h-4 w-4" />}
-            {verifying ? "Verifying…" : "Verify & create account"}
-          </button>
-          <div className="flex items-center justify-between text-xs">
-            <button type="button" onClick={() => setStep(1)} className="text-muted-foreground hover:text-foreground">← Edit details</button>
-            <button
-              type="button"
-              disabled={resendIn > 0}
-              onClick={() => { setResendIn(30); setSentAt(Date.now()); }}
-              className="text-cyan disabled:text-muted-foreground hover:underline disabled:no-underline"
-            >
-              {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend code"}
-            </button>
-          </div>
-        </form>
-      </AuthShell>
-    );
-  }
-
-  return (
-    <AuthShell icon={User} title="Create your company account" subtitle="Verify once with your work email — scan freely after">
-      <form onSubmit={(e) => { e.preventDefault(); if (step1Valid) setStep(2); }} className="space-y-4">
-        <Field icon={User} value={name} onChange={setName} placeholder="Your full name" autoComplete="name" />
-        <Field icon={Building2} value={company} onChange={setCompany} placeholder="Company name" autoComplete="organization" />
-        <div>
-          <Field icon={Mail} type="email" value={email} onChange={setEmail} placeholder="you@yourcompany.com" autoComplete="email" />
-          {email && !isWorkEmail && (
-            <p className="mt-1.5 text-xs text-warning flex items-center gap-1.5">
-              <AlertTriangle className="h-3.5 w-3.5" /> Please use your work email — personal mailboxes can't represent a company.
-            </p>
-          )}
-          {domain && isWorkEmail && (
-            <p className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
-              <Globe className="h-3.5 w-3.5 text-cyan" /> Company domain detected: <span className="text-cyan font-medium">{domain}</span>
-            </p>
-          )}
-        </div>
-        <Field icon={KeyRound} type="password" value={pwd} onChange={setPwd} placeholder="Password (min. 8 characters)" autoComplete="new-password" />
-        <label className="flex items-start gap-2.5 text-xs text-muted-foreground cursor-pointer">
-          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#06B6D4]" />
-          <span>
-            I agree to the <a className="text-cyan hover:underline" href="#">Terms of Service</a> and{" "}
-            <a className="text-cyan hover:underline" href="#">Privacy Policy</a>, and I'm authorized to act on behalf of my company for security assessments on its domain.
-          </span>
-        </label>
-        <button
-          type="submit"
-          disabled={!step1Valid}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition"
-        >
-          Continue — verify company email <ArrowRight className="h-4 w-4" />
-        </button>
-        <p className="text-center text-xs text-muted-foreground">
-          Already have an account? <button type="button" onClick={onLogin} className="text-cyan hover:underline">Sign in</button>
-        </p>
-      </form>
-    </AuthShell>
-  );
-}
-
-function TwoFA({ email, onVerified, onBack }: { email: string; onVerified: () => void; onBack: () => void }) {
-  const [code, setCode] = useState(["", "", "", "", "", ""]);
-  const [seconds, setSeconds] = useState(30);
-  useEffect(() => {
-    if (seconds <= 0) return;
-    const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [seconds]);
-
-  const valid = code.every((c) => /\d/.test(c));
-
-  function update(i: number, v: string) {
-    const ch = v.replace(/\D/g, "").slice(-1);
-    const next = [...code];
-    next[i] = ch;
-    setCode(next);
-    if (ch) {
-      const el = document.getElementById(`2fa-${i + 1}`);
-      el?.focus();
+    } catch (err: any) {
+      setError(err?.message || "Account creation failed.");
+    } finally {
+      setSubmitting(false);
     }
-  }
+  };
 
   return (
-    <AuthShell icon={Fingerprint} title="Two-Factor Authentication" subtitle={`Enter the 6-digit code sent to ${email || "your device"}`}>
-      <form onSubmit={(e) => { e.preventDefault(); if (valid) onVerified(); }} className="space-y-5">
-        <div className="grid grid-cols-6 gap-2">
-          {code.map((c, i) => (
-            <input
-              key={i}
-              id={`2fa-${i}`}
-              value={c}
-              onChange={(e) => update(i, e.target.value)}
-              inputMode="numeric"
-              maxLength={1}
-              className="h-12 rounded-xl border border-border bg-surface/60 text-center text-lg font-semibold outline-none focus:border-cyan/60 focus:ring-2 focus:ring-cyan/20"
-            />
-          ))}
-        </div>
-        <div className="rounded-xl border border-cyan/20 bg-cyan/5 px-3 py-2.5 text-xs text-soft/90 flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-cyan" />
-          Your account is protected by a one-time verification code.
-        </div>
-        <button
-          type="submit"
-          disabled={!valid}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition"
-        >
-          Verify & enter console <ArrowRight className="h-4 w-4" />
-        </button>
-        <div className="flex items-center justify-between text-xs">
-          <button type="button" onClick={onBack} className="text-muted-foreground hover:text-foreground">← Back to sign in</button>
+    <AuthShell
+      icon={User}
+      title="Create your account"
+      subtitle="Create a SecureSight360 user account"
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <Field
+          icon={User}
+          value={name}
+          onChange={setName}
+          placeholder="Your full name"
+          autoComplete="name"
+        />
+
+        <Field
+          icon={Building2}
+          value={company}
+          onChange={setCompany}
+          placeholder="Company name"
+          autoComplete="organization"
+        />
+
+        <Field
+          icon={Mail}
+          type="email"
+          value={email}
+          onChange={setEmail}
+          placeholder="you@company.com"
+          autoComplete="email"
+        />
+
+        {email && !validEmail && (
+          <p className="mt-1.5 text-xs text-warning flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Please enter a valid email address.
+          </p>
+        )}
+
+        {businessEmailError && (
+          <p className="mt-1.5 text-xs text-warning flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {businessEmailError}
+          </p>
+        )}
+
+        {businessEmailDomain && (
+          <p className="mt-1.5 text-xs text-cyan flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Domain detected: {businessEmailDomain}
+          </p>
+        )}
+
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2.5 focus-within:border-cyan/60 focus-within:ring-2 focus-within:ring-cyan/20">
+          <KeyRound className="h-4 w-4 text-muted-foreground" />
+          <input
+            type={showPassword ? "text" : "password"}
+            value={pwd}
+            onChange={(e) => setPwd(e.target.value)}
+            placeholder="Password (min. 8 characters)"
+            autoComplete="new-password"
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+          />
           <button
             type="button"
-            disabled={seconds > 0}
-            onClick={() => setSeconds(30)}
-            className="text-cyan disabled:text-muted-foreground hover:underline disabled:no-underline"
+            onClick={() => setShowPassword((value) => !value)}
+            className="text-muted-foreground hover:text-foreground transition"
+            aria-label={showPassword ? "Hide password" : "Show password"}
           >
-            {seconds > 0 ? `Resend in ${seconds}s` : "Resend code"}
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
+
+        <label className="flex items-start gap-2.5 text-xs text-muted-foreground cursor-pointer">
+          <input
+            type="checkbox"
+            checked={agree}
+            onChange={(e) => setAgree(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[#06B6D4]"
+          />
+          <span>
+            I agree to the{" "}
+            <a className="text-cyan hover:underline" href="#">
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a className="text-cyan hover:underline" href="#">
+              Privacy Policy
+            </a>
+            , and I confirm I will only run authorized security assessments.
+          </span>
+        </label>
+
+        {error && (
+          <div className="rounded-lg border border-warning/30 bg-warning/10 text-warning text-xs px-3 py-2 flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {error}
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={!valid || submitting}
+          className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition"
+        >
+          {submitting ? "Creating account…" : "Create account"}
+          <ArrowRight className="h-4 w-4" />
+        </button>
+
+        <p className="text-center text-xs text-muted-foreground">
+          Already have an account?{" "}
+          <button
+            type="button"
+            onClick={onLogin}
+            className="text-cyan hover:underline"
+          >
+            Sign in
+          </button>
+        </p>
       </form>
     </AuthShell>
   );

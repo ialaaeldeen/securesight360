@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { apiFetch } from "@/lib/api";
 import {
   Globe, ShieldCheck, Search, AlertTriangle, CheckCircle, Radar, Bug, Lock, Server, FileText, ExternalLink, Zap, BarChart3,
 } from "lucide-react";
@@ -22,14 +24,17 @@ interface FeedbackCard {
 }
 
 interface ProfessionalResult {
+  key_risk_drivers?: string[];
+  priority_actions?: string[];
+  positive_security_signals?: string[];
+  severity_counts?: Record<string, number>;
+  category_counts?: Record<string, number>;
   executive_summary?: string;
   risk_engine_summary?: string;
   detection_summary?: string;
   security_score?: number;
   risk_level?: string;
   grade?: string;
-  positive_security_signals?: string[];
-  priority_actions?: string[];
 }
 
 interface ScanResponse {
@@ -38,6 +43,7 @@ interface ScanResponse {
   grade?: string;
   findings_count?: number;
   result?: {
+    risk_assessment?: ProfessionalResult & Record<string, unknown>;
     metadata?: {
       professional_result?: ProfessionalResult;
       key_risk_drivers?: string[];
@@ -237,8 +243,9 @@ function normalizeScanResponse(response: ScanResponse): FlexibleScanResponse {
 function saveScanToHistory(scan: FlexibleScanResponse): void {
   if (typeof window === "undefined") return;
 
-  const targetUrl = scan.target_url ?? scan.result?.final_url ?? scan.result?.original_url ?? "Unknown target";
-  const domain = scan.result?.domain ?? targetUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const resultAny = scan.result as any;
+  const targetUrl = scan.target_url ?? resultAny?.final_url ?? resultAny?.original_url ?? "Unknown target";
+  const domain = resultAny?.domain ?? targetUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
   const findingsCount = scan.findings_count ?? scan.findings?.length ?? 0;
 
   const record = {
@@ -261,18 +268,50 @@ function saveScanToHistory(scan: FlexibleScanResponse): void {
     findingsCount,
     findings: scan.findings ?? [],
     executive_summary: scan.executive_summary,
+    owner_email: (() => {
+      try {
+        return (window.localStorage.getItem("cs360-user-email") || "").trim().toLowerCase();
+      } catch {
+        return "";
+      }
+    })(),
+    owner_domain: (() => {
+      try {
+        const email = (window.localStorage.getItem("cs360-user-email") || "").trim().toLowerCase();
+        return email.includes("@") ? email.split("@")[1] : "";
+      } catch {
+        return "";
+      }
+    })(),
   };
 
-  const key = "cs360-scan-history";
+  const currentUserEmail = (() => {
+    try {
+      return (window.localStorage.getItem("cs360-user-email") || "anonymous").trim().toLowerCase();
+    } catch {
+      return "anonymous";
+    }
+  })();
 
-  try {
-    const existing = JSON.parse(window.localStorage.getItem(key) || "[]");
-    const records = Array.isArray(existing) ? existing : [];
-    const updated = [record, ...records].slice(0, 25);
+  const currentUserDomain = currentUserEmail.includes("@")
+    ? currentUserEmail.split("@")[1]
+    : "";
 
-    window.localStorage.setItem(key, JSON.stringify(updated));
-  } catch {
-    window.localStorage.setItem(key, JSON.stringify([record]));
+  const keys = [
+    `cs360-scan-history:${currentUserEmail}`,
+    currentUserDomain ? `cs360-scan-history-domain:${currentUserDomain}` : "",
+  ].filter(Boolean);
+
+  for (const storageKey of keys) {
+    try {
+      const existing = JSON.parse(window.localStorage.getItem(storageKey) || "[]");
+      const records = Array.isArray(existing) ? existing : [];
+      const updated = [record, ...records].slice(0, 25);
+
+      window.localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch {
+      window.localStorage.setItem(storageKey, JSON.stringify([record]));
+    }
   }
 }
 
@@ -291,8 +330,54 @@ export function Scanner({ onReverify }: { onReverify?: () => void } = {}) {
   }, [url]);
 
   const [verifiedDomain, setVerifiedDomain] = useState<string | null>(() => {
-    try { return localStorage.getItem("cs360-company-domain"); } catch { return null; }
-  });
+  try {
+    const storedDomain = localStorage.getItem("cs360-company-domain");
+    const storedEmail = localStorage.getItem("cs360-user-email");
+    return storedDomain || storedEmail?.split("@")[1]?.toLowerCase() || null;
+  } catch {
+    return null;
+  }
+});
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function syncRegisteredDomainFromBackend() {
+    try {
+      const user = await apiFetch<any>("/api/v1/auth/me");
+
+      const email = String(user?.email || "").trim().toLowerCase();
+      const domain = email.includes("@") ? email.split("@")[1] : null;
+
+      if (!domain || cancelled) return;
+
+      localStorage.setItem("cs360-user-email", email);
+      localStorage.setItem("cs360-company-domain", domain);
+
+      if (user?.full_name) {
+        localStorage.setItem("cs360-user-name", String(user.full_name));
+      }
+
+      if (user?.company_name) {
+        localStorage.setItem("cs360-company-name", String(user.company_name));
+      }
+
+      if (!localStorage.getItem("cs360-registered-at")) {
+        localStorage.setItem("cs360-registered-at", new Date().toISOString());
+      }
+
+      setVerifiedDomain(domain);
+    } catch {
+      // Keep local fallback if /auth/me is unavailable.
+    }
+  }
+
+  syncRegisteredDomainFromBackend();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   function clearRegisteredDomain() {
     if (!confirm("Reset your registered company domain and return to verification? You'll need to sign up again with the correct work email.")) return;
@@ -304,11 +389,11 @@ export function Scanner({ onReverify }: { onReverify?: () => void } = {}) {
     if (onReverify) onReverify();
   }
 
-  const matchesCompany = !!hostname && !!verifiedDomain &&
+  const matchesCompany = !!hostname && !false &&
     (hostname === verifiedDomain || hostname.endsWith("." + verifiedDomain));
 
   const urlValid = useMemo(() => isValidUrl(url), [url]);
-  const domainAllowed = !verifiedDomain ? false : matchesCompany;
+  const domainAllowed = Boolean(verifiedDomain && matchesCompany);
   const canSubmit = urlValid && authorized && domainAllowed && !loading;
 
   async function runScan(e: React.FormEvent) {
@@ -328,47 +413,22 @@ export function Scanner({ onReverify }: { onReverify?: () => void } = {}) {
         authorization_confirmed: true,
       };
 
-      const endpoint = `${API_BASE_URL}/api/v1/website/scan`;
+      const endpoint = "/api/v1/website/scan";
 
       console.log("SecureSight360 scan request", {
-        endpoint,
+        endpoint: `${API_BASE_URL}${endpoint}`,
         payload,
       });
 
-      const res = await fetch(endpoint, {
+      const json = await apiFetch<ScanResponse>(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(payload),
       });
 
-      const rawText = await res.text();
-
       console.log("SecureSight360 scan response", {
-        status: res.status,
-        body: rawText,
+        status: 200,
+        body: json,
       });
-
-      let json: ScanResponse | any = null;
-
-      try {
-        json = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        throw new Error(
-          rawText ||
-            `Backend returned HTTP ${res.status}, but the response was not valid JSON.`,
-        );
-      }
-
-      if (!res.ok) {
-        const detail =
-          typeof json?.detail === "string"
-            ? json.detail
-            : JSON.stringify(json?.detail ?? json);
-
-        throw new Error(detail || `Backend scan failed with HTTP ${res.status}.`);
-      }
 
       const normalized = normalizeScanResponse(json as ScanResponse);
       setData(normalized);
@@ -541,9 +601,9 @@ export function Scanner({ onReverify }: { onReverify?: () => void } = {}) {
             )}
           </button>
           <span className="text-xs text-muted-foreground">
-            {!verifiedDomain ? "Verify your company email to unlock scanning." :
+            {false ? "Verify your company email to unlock scanning." :
              !urlValid ? "Enter a valid URL to begin." :
-             !domainAllowed ? `Only ${verifiedDomain} (and its subdomains) can be scanned from this account.` :
+             false ? `Only ${verifiedDomain} (and its subdomains) can be scanned from this account.` :
              !authorized ? "Accept the authorization & privacy agreement to continue." :
              "Safe, read-only checks. No exploitation, no intrusive payloads."}
           </span>
@@ -789,5 +849,16 @@ function formatEvidence(e: FeedbackCard["evidence"]): string | null {
     return null;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
