@@ -1282,6 +1282,9 @@ def _history_build_item(row, findings_count=None):
 
     return {
         "scan_id": scan_id,
+        "user_id": row_data.get("user_id"),
+        "user_email": row_data.get("user_email"),
+        "user_full_name": row_data.get("user_full_name"),
         "target_url": row_data.get("target")
         or row_data.get("target_url")
         or row_data.get("original_url")
@@ -1370,6 +1373,69 @@ def _history_fetch_scan_rows(db, limit, offset):
     return db.execute(fallback_query, {"limit": limit, "offset": offset}).mappings().all()
 
 
+
+def _history_fetch_user_scan_rows(db, user_id, limit, offset):
+    from sqlalchemy import text
+
+    query = text(
+        """
+        SELECT
+            s.*,
+            COALESCE(f.findings_count, 0) AS findings_count
+        FROM scans s
+        LEFT JOIN (
+            SELECT scan_id, COUNT(*) AS findings_count
+            FROM findings
+            GROUP BY scan_id
+        ) f ON f.scan_id = s.id
+        WHERE
+            s.user_id = :user_id
+            AND (
+                LOWER(CAST(COALESCE(s.target_type, '') AS TEXT)) LIKE '%website%'
+                OR LOWER(CAST(COALESCE(s.scan_type, '') AS TEXT)) LIKE '%website%'
+            )
+        ORDER BY COALESCE(s.completed_at, s.started_at) DESC
+        LIMIT :limit OFFSET :offset
+        """
+    )
+
+    return db.execute(
+        query,
+        {
+            "user_id": user_id,
+            "limit": limit,
+            "offset": offset,
+        },
+    ).mappings().all()
+
+
+def _history_fetch_owned_scan_row(db, scan_id, user_id):
+    from sqlalchemy import text
+
+    query = text(
+        """
+        SELECT *
+        FROM scans
+        WHERE
+            id = :scan_id
+            AND user_id = :user_id
+            AND (
+                LOWER(CAST(COALESCE(target_type, '') AS TEXT)) LIKE '%website%'
+                OR LOWER(CAST(COALESCE(scan_type, '') AS TEXT)) LIKE '%website%'
+            )
+        LIMIT 1
+        """
+    )
+
+    return db.execute(
+        query,
+        {
+            "scan_id": scan_id,
+            "user_id": user_id,
+        },
+    ).mappings().first()
+
+
 @router.get(
     "/history",
     summary="List website scan history",
@@ -1397,6 +1463,110 @@ def get_website_scan_history(
         "offset": safe_offset,
         "items": items,
         "history": items,
+    }
+
+
+
+@router.get(
+    "/history/me",
+    summary="List current user's website scan history",
+)
+def get_my_website_scan_history(
+    limit: int = 25,
+    offset: int = 0,
+    db=Depends(get_db),
+    current_user: AuthenticatedUser = Depends(require_authenticated_user),
+):
+    """
+    Return website scans owned by the authenticated user only.
+
+    Security rule:
+    - The frontend never provides user_id.
+    - Ownership is enforced with scans.user_id = current_user.id.
+    - Old scans without user_id are hidden from normal users.
+    """
+    safe_limit = max(1, min(limit, 100))
+    safe_offset = max(0, offset)
+
+    rows = _history_fetch_user_scan_rows(
+        db=db,
+        user_id=current_user.id,
+        limit=safe_limit,
+        offset=safe_offset,
+    )
+    items = [_history_build_item(row) for row in rows]
+
+    return {
+        "status": "success",
+        "count": len(items),
+        "limit": safe_limit,
+        "offset": safe_offset,
+        "items": items,
+        "history": items,
+    }
+
+
+@router.get(
+    "/history/me/{scan_id}",
+    summary="Get current user's website scan history details",
+)
+def get_my_website_scan_history_detail(
+    scan_id: int,
+    db=Depends(get_db),
+    current_user: AuthenticatedUser = Depends(require_authenticated_user),
+):
+    """
+    Return one website scan only if it belongs to the authenticated user.
+    """
+    from sqlalchemy import text
+
+    scan_row = _history_fetch_owned_scan_row(
+        db=db,
+        scan_id=scan_id,
+        user_id=current_user.id,
+    )
+
+    if scan_row is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Website scan was not found.",
+        )
+
+    website_check_rows = db.execute(
+        text(
+            """
+            SELECT *
+            FROM website_checks
+            WHERE scan_id = :scan_id
+            ORDER BY id DESC
+            """
+        ),
+        {"scan_id": scan_id},
+    ).mappings().all()
+
+    finding_rows = db.execute(
+        text(
+            """
+            SELECT *
+            FROM findings
+            WHERE scan_id = :scan_id
+            ORDER BY id ASC
+            """
+        ),
+        {"scan_id": scan_id},
+    ).mappings().all()
+
+    website_checks = [_history_row_to_dict(row) for row in website_check_rows]
+    findings = [_history_build_finding(row) for row in finding_rows]
+
+    return {
+        "status": "success",
+        "scan": _history_build_item(scan_row, findings_count=len(findings)),
+        "raw_scan": _history_row_to_dict(scan_row),
+        "website_check": website_checks[0] if website_checks else None,
+        "website_checks": website_checks,
+        "findings": findings,
+        "findings_count": len(findings),
     }
 
 

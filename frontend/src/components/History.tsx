@@ -3,12 +3,15 @@ import {
   History as HistoryIcon,
   Globe,
   Calendar,
-  Trash2,
   Download,
   Search,
   ShieldCheck,
   BarChart3,
+  RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
+
+import { apiFetch } from "@/lib/api";
 
 type ScanRecord = {
   id: string;
@@ -32,7 +35,11 @@ function hostnameFromUrl(value: string): string {
   try {
     return new URL(value).hostname.replace(/^www\./, "").toLowerCase();
   } catch {
-    return String(value || "unknown").replace(/^https?:\/\//, "").split("/")[0].replace(/^www\./, "").toLowerCase();
+    return String(value || "unknown")
+      .replace(/^https?:\/\//, "")
+      .split("/")[0]
+      .replace(/^www\./, "")
+      .toLowerCase();
   }
 }
 
@@ -72,12 +79,22 @@ function normalizeRow(row: any): ScanRecord {
   );
 
   return {
-    id: String(row?.id || row?.scan_id || `${domain}-${row?.created_at || Date.now()}`),
+    id: String(row?.id || row?.scan_id || `${domain}-${row?.completed_at || row?.started_at || Date.now()}`),
     domain: String(domain || "unknown").replace(/^www\./, "").toLowerCase(),
     target_url: String(target || ""),
-    created_at: String(row?.created_at || row?.scanned_at || row?.timestamp || new Date().toISOString()),
+    created_at: String(
+      row?.created_at ||
+        row?.completed_at ||
+        row?.started_at ||
+        row?.scanned_at ||
+        row?.timestamp ||
+        new Date().toISOString()
+    ),
     score,
-    grade: String(row?.grade || (score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F")),
+    grade: String(
+      row?.grade ||
+        (score >= 90 ? "A" : score >= 80 ? "B" : score >= 70 ? "C" : score >= 60 ? "D" : "F")
+    ),
     risk_level: String(row?.risk_level || row?.risk || (score >= 70 ? "Medium" : "Critical")),
     profile: String(row?.profile || row?.scan_profile || "Basic"),
     findings_count: findingsCount,
@@ -103,63 +120,6 @@ function riskBadgeClass(risk: string): string {
   return "bg-red-950/60 text-red-300 border-red-800/60";
 }
 
-function currentIdentity() {
-  const email = (window.localStorage.getItem("cs360-user-email") || "").trim().toLowerCase();
-  const domainFromEmail = email.includes("@") ? email.split("@")[1] : "";
-  const storedDomain = (window.localStorage.getItem("cs360-company-domain") || "").trim().toLowerCase();
-
-  return {
-    email,
-    domain: (domainFromEmail || storedDomain).replace(/^www\./, ""),
-  };
-}
-
-function readJsonArray(key: string): any[] {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(key) || "[]");
-    return Array.isArray(value) ? value : [];
-  } catch {
-    return [];
-  }
-}
-
-function loadLocalHistory(): ScanRecord[] {
-  const { email, domain } = currentIdentity();
-
-  if (!email && !domain) {
-    return [];
-  }
-
-  const keys = [
-    email ? `cs360-scan-history:${email}` : "",
-    domain ? `cs360-scan-history-domain:${domain}` : "",
-    "cs360-scan-history",
-  ].filter(Boolean);
-
-  const combined = keys.flatMap((key) => readJsonArray(key));
-
-  const unique = new Map<string, ScanRecord>();
-
-  for (const item of combined) {
-    const record = normalizeRow(item);
-
-    if (domain) {
-      const recordDomain = record.domain.replace(/^www\./, "").toLowerCase();
-      const allowed =
-        recordDomain === domain ||
-        recordDomain.endsWith("." + domain);
-
-      if (!allowed) continue;
-    }
-
-    unique.set(record.id, record);
-  }
-
-  return Array.from(unique.values()).sort((a, b) => {
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
-}
-
 function downloadJson(record: ScanRecord) {
   const blob = new Blob([JSON.stringify(record.raw, null, 2)], {
     type: "application/json",
@@ -178,18 +138,39 @@ function downloadJson(record: ScanRecord) {
 export function History() {
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const refresh = () => {
-    setRecords(loadLocalHistory());
+  const loadBackendHistory = async (mode: "initial" | "refresh" = "initial") => {
+    if (mode === "initial") {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
+    setError(null);
+
+    try {
+      const response = (await apiFetch("/api/v1/website/history/me?limit=100")) as any;
+      const items = Array.isArray(response?.items)
+        ? response.items
+        : Array.isArray(response?.history)
+          ? response.history
+          : [];
+
+      setRecords(items.map(normalizeRow));
+    } catch (err: any) {
+      setRecords([]);
+      setError(err?.message || "Could not load scan history from the backend.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
-    refresh();
-
-    const onStorage = () => refresh();
-    window.addEventListener("storage", onStorage);
-
-    return () => window.removeEventListener("storage", onStorage);
+    void loadBackendHistory("initial");
   }, []);
 
   const filtered = useMemo(() => {
@@ -205,30 +186,13 @@ export function History() {
     });
   }, [records, query]);
 
-  const clearAll = () => {
-    if (!confirm("Clear scan history for this account/domain?")) {
-      return;
+  const viewDetails = async (record: ScanRecord) => {
+    try {
+      const detail = (await apiFetch(`/api/v1/website/history/me/${record.id}`)) as any;
+      alert(JSON.stringify(detail, null, 2));
+    } catch (err: any) {
+      alert(err?.message || "Could not load scan details.");
     }
-
-    const { email, domain } = currentIdentity();
-
-    if (email) {
-      window.localStorage.removeItem(`cs360-scan-history:${email}`);
-    }
-
-    if (domain) {
-      window.localStorage.removeItem(`cs360-scan-history-domain:${domain}`);
-    }
-
-    const shared = readJsonArray("cs360-scan-history");
-    const kept = shared.filter((item) => {
-      const r = normalizeRow(item);
-      if (!domain) return false;
-      return !(r.domain === domain || r.domain.endsWith("." + domain));
-    });
-
-    window.localStorage.setItem("cs360-scan-history", JSON.stringify(kept));
-    setRecords([]);
   };
 
   return (
@@ -247,7 +211,7 @@ export function History() {
                 Scan History
               </h1>
               <p className="text-sm text-muted-foreground">
-                Every authorized assessment, kept private and searchable.
+                Backend-owned scan history. Only your authorized assessments are shown.
               </p>
             </div>
           </div>
@@ -265,17 +229,40 @@ export function History() {
 
             <button
               type="button"
-              onClick={clearAll}
-              className="inline-flex items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 text-danger px-4 py-2 text-sm hover:bg-danger/20 transition"
+              onClick={() => loadBackendHistory("refresh")}
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm hover:border-cyan/40 hover:text-cyan disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
-              <Trash2 className="h-4 w-4" />
-              Clear
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
             </button>
           </div>
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {error && (
+        <div className="rounded-2xl border border-warning/30 bg-warning/10 p-4 text-warning flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+          <div>
+            <div className="font-medium">Could not load scan history</div>
+            <div className="text-sm opacity-90">{error}</div>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="glass rounded-2xl p-10 text-center">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-secondary border border-border">
+            <RefreshCw className="h-6 w-6 text-cyan animate-spin" />
+          </div>
+
+          <div className="mt-4 font-medium">Loading scan history…</div>
+
+          <p className="text-sm text-muted-foreground mt-1">
+            Retrieving your private scan records from the backend.
+          </p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="glass rounded-2xl p-10 text-center">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-secondary border border-border">
             <HistoryIcon className="h-6 w-6 text-cyan" />
@@ -284,7 +271,7 @@ export function History() {
           <div className="mt-4 font-medium">No scan history yet</div>
 
           <p className="text-sm text-muted-foreground mt-1">
-            Run a website scan to see results stored here.
+            Run a website scan to see backend-owned results stored here.
           </p>
         </div>
       ) : (
@@ -339,7 +326,7 @@ export function History() {
 
                 <button
                   type="button"
-                  onClick={() => alert(JSON.stringify(r.raw, null, 2))}
+                  onClick={() => viewDetails(r)}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary/60 px-3 py-2 text-xs hover:border-cyan/40 hover:text-cyan transition"
                 >
                   <BarChart3 className="h-3.5 w-3.5" />

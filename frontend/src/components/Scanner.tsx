@@ -240,80 +240,6 @@ function normalizeScanResponse(response: ScanResponse): FlexibleScanResponse {
   };
 }
 
-function saveScanToHistory(scan: FlexibleScanResponse): void {
-  if (typeof window === "undefined") return;
-
-  const resultAny = scan.result as any;
-  const targetUrl = scan.target_url ?? resultAny?.final_url ?? resultAny?.original_url ?? "Unknown target";
-  const domain = resultAny?.domain ?? targetUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
-  const findingsCount = scan.findings_count ?? scan.findings?.length ?? 0;
-
-  const record = {
-    id: scan.scan_id ?? `${Date.now()}`,
-    scan_id: scan.scan_id,
-    status: scan.status ?? "completed",
-    target_url: targetUrl,
-    targetUrl,
-    domain,
-    scanned_at: new Date().toISOString(),
-    date: new Date().toISOString(),
-    timestamp: new Date().toISOString(),
-    security_score: scan.security_score ?? 0,
-    score: scan.security_score ?? 0,
-    risk_level: scan.risk_level ?? "unknown",
-    risk: scan.risk_level ?? "unknown",
-    level: scan.risk_level ?? "unknown",
-    grade: scan.grade ?? "—",
-    findings_count: findingsCount,
-    findingsCount,
-    findings: scan.findings ?? [],
-    executive_summary: scan.executive_summary,
-    owner_email: (() => {
-      try {
-        return (window.localStorage.getItem("cs360-user-email") || "").trim().toLowerCase();
-      } catch {
-        return "";
-      }
-    })(),
-    owner_domain: (() => {
-      try {
-        const email = (window.localStorage.getItem("cs360-user-email") || "").trim().toLowerCase();
-        return email.includes("@") ? email.split("@")[1] : "";
-      } catch {
-        return "";
-      }
-    })(),
-  };
-
-  const currentUserEmail = (() => {
-    try {
-      return (window.localStorage.getItem("cs360-user-email") || "anonymous").trim().toLowerCase();
-    } catch {
-      return "anonymous";
-    }
-  })();
-
-  const currentUserDomain = currentUserEmail.includes("@")
-    ? currentUserEmail.split("@")[1]
-    : "";
-
-  const keys = [
-    `cs360-scan-history:${currentUserEmail}`,
-    currentUserDomain ? `cs360-scan-history-domain:${currentUserDomain}` : "",
-  ].filter(Boolean);
-
-  for (const storageKey of keys) {
-    try {
-      const existing = JSON.parse(window.localStorage.getItem(storageKey) || "[]");
-      const records = Array.isArray(existing) ? existing : [];
-      const updated = [record, ...records].slice(0, 25);
-
-      window.localStorage.setItem(storageKey, JSON.stringify(updated));
-    } catch {
-      window.localStorage.setItem(storageKey, JSON.stringify([record]));
-    }
-  }
-}
 
 export function Scanner({ onReverify }: { onReverify?: () => void } = {}) {
   const { t } = useI18n();
@@ -432,7 +358,6 @@ useEffect(() => {
 
       const normalized = normalizeScanResponse(json as ScanResponse);
       setData(normalized);
-      saveScanToHistory(normalized);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Unable to connect to the backend scanner.";
