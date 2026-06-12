@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -45,6 +45,82 @@ COMMON_WEAK_PASSWORDS = {
     "secure123",
     "changeme",
 }
+
+MAX_FAILED_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_MINUTES = 15
+
+_LOGIN_FAILURES: dict[str, dict[str, object]] = {}
+
+
+def _login_key(email: str) -> str:
+    return _normalize_email(email)
+
+
+def _get_login_lockout_until(email: str) -> datetime | None:
+    record = _LOGIN_FAILURES.get(_login_key(email))
+
+    if not record:
+        return None
+
+    lockout_until = record.get("lockout_until")
+
+    if not isinstance(lockout_until, datetime):
+        return None
+
+    if lockout_until <= datetime.now(timezone.utc):
+        _LOGIN_FAILURES.pop(_login_key(email), None)
+        return None
+
+    return lockout_until
+
+
+def _raise_invalid_login() -> None:
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid email or password.",
+    )
+
+
+def _check_login_throttle(email: str) -> None:
+    lockout_until = _get_login_lockout_until(email)
+
+    if lockout_until is None:
+        return
+
+    retry_after_seconds = max(
+        1,
+        int((lockout_until - datetime.now(timezone.utc)).total_seconds()),
+    )
+
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Too many failed login attempts. Please try again later.",
+        headers={"Retry-After": str(retry_after_seconds)},
+    )
+
+
+def _record_failed_login(email: str) -> None:
+    key = _login_key(email)
+    now = datetime.now(timezone.utc)
+    record = _LOGIN_FAILURES.get(key, {"count": 0, "lockout_until": None})
+
+    failed_count = int(record.get("count", 0)) + 1
+
+    if failed_count >= MAX_FAILED_LOGIN_ATTEMPTS:
+        _LOGIN_FAILURES[key] = {
+            "count": failed_count,
+            "lockout_until": now + timedelta(minutes=LOGIN_LOCKOUT_MINUTES),
+        }
+        return
+
+    _LOGIN_FAILURES[key] = {
+        "count": failed_count,
+        "lockout_until": None,
+    }
+
+
+def _clear_failed_logins(email: str) -> None:
+    _LOGIN_FAILURES.pop(_login_key(email), None)
 
 PERSONAL_EMAIL_DOMAINS = {
     "gmail.com",
@@ -159,14 +235,14 @@ def _validate_password(password: str) -> str:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Password must include at least one uppercase letter.",
         )
-if PASSWORD_SPECIAL_PATTERN.search(password) is None:
+
+    if PASSWORD_SPECIAL_PATTERN.search(password) is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Password must include at least one special character.",
         )
 
     return password
-
 
 def _safe_name(value: str | None) -> str | None:
     if value is None:
@@ -271,13 +347,20 @@ def _login_response_for_user(user: AuthenticatedUser) -> LoginResponse:
     summary="Login with a database user account",
 )
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
-    user = authenticate_user(db=db, email=payload.email, password=payload.password)
+    email = _validate_email(payload.email)
+
+    _check_login_throttle(email)
+
+    user = authenticate_user(db=db, email=email, password=payload.password)
 
     if user is None:
+        _record_failed_login(email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
         )
+
+    _clear_failed_logins(email)
 
     return _login_response_for_user(user)
 
