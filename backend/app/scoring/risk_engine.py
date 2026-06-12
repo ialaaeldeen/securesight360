@@ -296,6 +296,7 @@ class RiskEngine:
 
         self._evaluate_availability(data, deductions, positive_signals)
         self._evaluate_transport_security(data, target, deductions, positive_signals)
+        self._evaluate_https_redirect(data, deductions, positive_signals)
         self._evaluate_security_headers(data, deductions, positive_signals)
         self._evaluate_cookie_security(data, deductions, positive_signals)
         self._evaluate_dns_email_security(data, deductions, positive_signals)
@@ -569,6 +570,83 @@ class RiskEngine:
                         "and modern cipher suites."
                     ),
                     detection_method="TLS protocol capability inspection.",
+                    mappings=DEFAULT_MAPPINGS["cryptographic_failures"],
+                )
+            )
+
+    def _evaluate_https_redirect(
+        self,
+        data: Any,
+        deductions: list[ScoringDeduction],
+        positive_signals: list[PositiveSignal],
+    ) -> None:
+        if _extract_reachable(data) is False:
+            return
+
+        redirect_node = _extract_https_redirect_node(data)
+        if redirect_node is None:
+            return
+
+        redirects_to_https = _as_bool(
+            _first_not_none(
+                _mapping_get_normalized(redirect_node, "redirects_to_https"),
+                _mapping_get_normalized(redirect_node, "http_redirects_to_https"),
+                _mapping_get_normalized(redirect_node, "https_redirect_enabled"),
+            )
+        )
+
+        checked_url = _first_text_from_mapping(
+            redirect_node,
+            ("checked_url", "http_url", "source_url", "original_http_url"),
+        )
+        final_url = _first_text_from_mapping(
+            redirect_node,
+            ("final_url", "destination_url", "redirect_target"),
+        )
+        error = _first_text_from_mapping(redirect_node, ("error", "error_message"))
+
+        if redirects_to_https is True:
+            positive_signals.append(
+                PositiveSignal(
+                    title="HTTP requests redirect to HTTPS",
+                    category="Transport Security",
+                    evidence=_evidence_join(
+                        [
+                            f"checked_url={checked_url}" if checked_url else None,
+                            f"final_url={final_url}" if final_url else None,
+                        ]
+                    ),
+                    mappings=DEFAULT_MAPPINGS["cryptographic_failures"],
+                )
+            )
+            return
+
+        if redirects_to_https is False:
+            deductions.append(
+                _deduction(
+                    rule_id="TLS-005",
+                    title="HTTP does not redirect to HTTPS",
+                    category="Transport Security",
+                    severity=Severity.MEDIUM,
+                    deduction=8,
+                    evidence=_evidence_join(
+                        [
+                            f"checked_url={checked_url}" if checked_url else None,
+                            f"final_url={final_url}" if final_url else None,
+                            f"error={error}" if error else None,
+                        ]
+                    ),
+                    business_impact=(
+                        "Users who access the site over plain HTTP may not be upgraded "
+                        "to encrypted HTTPS automatically, increasing downgrade and "
+                        "traffic interception risk."
+                    ),
+                    recommendation=(
+                        "Configure the web server, reverse proxy, or CDN to redirect all "
+                        "HTTP requests to the equivalent HTTPS URL using a permanent "
+                        "redirect after HTTPS is verified."
+                    ),
+                    detection_method="Safe HTTP request followed by redirect chain inspection.",
                     mappings=DEFAULT_MAPPINGS["cryptographic_failures"],
                 )
             )
@@ -1438,6 +1516,45 @@ def _extract_certificate_days_to_expiry(data: Any) -> int | None:
     )
 
 
+def _extract_https_redirect_node(data: Any) -> Mapping[str, Any] | None:
+    redirect_section_names = {
+        "redirect",
+        "redirect-security",
+        "redirects",
+        "https-redirect",
+        "http-https-redirect",
+        "http-to-https-redirect",
+        "http-to-https",
+    }
+
+    for node in _iter_mappings(data):
+        for key, value in node.items():
+            if (
+                _normalize_key(str(key)) in redirect_section_names
+                and isinstance(value, Mapping)
+            ):
+                return value
+
+        if _mapping_get_normalized(node, "redirects_to_https") is not None:
+            return node
+
+        if _mapping_get_normalized(node, "http_redirects_to_https") is not None:
+            return node
+
+        if _mapping_get_normalized(node, "https_redirect_enabled") is not None:
+            return node
+
+    return None
+
+
+def _first_not_none(*values: Any) -> Any:
+    for value in values:
+        if value is not None:
+            return value
+
+    return None
+
+
 def _extract_tls_protocols(data: Any) -> set[str]:
     protocols: set[str] = set()
     values = _find_all_values(
@@ -2137,6 +2254,7 @@ def _assessment_coverage(data: Any, target: str | None) -> dict[str, bool]:
             _record_state(data, record).present is not None
             for record in ("spf", "dmarc", "dkim", "dnssec")
         ),
+        "https_redirect": _extract_https_redirect_node(data) is not None,
         "exposure_management": bool(_extract_open_ports(data)),
     }
 

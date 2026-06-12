@@ -395,6 +395,19 @@ def _build_scan_result(
         )
     )
 
+    redirect_security_payload = _compact_plain_data(
+        _first_not_none(
+            _get_attr(
+                scanner_result,
+                "redirect",
+                "redirect_result",
+                "redirect_security",
+                "http_to_https_redirect",
+            ),
+            _get_attr(scanner_result, "https_redirect"),
+        )
+    )
+
     result_payload = {
         "original_url": target_url,
         "target_url": target_url,
@@ -435,8 +448,10 @@ def _build_scan_result(
                     "security_headers": bool(security_headers_payload),
                     "ssl_tls": bool(ssl_tls_payload),
                     "dns_email_security": bool(dns_email_payload),
+                    "https_redirect": bool(redirect_security_payload),
                     "risk_assessment": bool(risk_payload),
                 },
+                "redirect_security": redirect_security_payload,
             }
         ),
     }

@@ -8,6 +8,10 @@ from app.scanners.website.availability_checker import (
 )
 from app.scanners.website.dns_checker import DNSCheckResult, DNSChecker
 from app.scanners.website.header_checker import HeaderCheckResult, SecurityHeaderChecker
+from app.scanners.website.redirect_checker import (
+    HTTPToHTTPSRedirectChecker,
+    RedirectCheckResult,
+)
 from app.scanners.website.ssl_checker import SSLCheckResult, SSLChecker
 from app.scoring.risk_engine import RiskAssessment, assess_website_risk
 from app.utils.validators import extract_domain_from_url, validate_website_url
@@ -21,6 +25,7 @@ class WebsiteScannerResult:
     This combines safe website checks:
     - Availability
     - HTTPS and SSL/TLS certificate status
+    - HTTP to HTTPS redirect enforcement
     - Security headers
     - DNS records
     - SPF, DMARC, DKIM, and DNSSEC guidance
@@ -32,6 +37,7 @@ class WebsiteScannerResult:
     domain: str
     availability: AvailabilityCheckResult
     ssl: SSLCheckResult
+    redirect: RedirectCheckResult
     headers: HeaderCheckResult
     dns: DNSCheckResult
     technologies_detected: dict[str, str | None] = field(default_factory=dict)
@@ -58,11 +64,13 @@ class WebsiteScanner:
         ssl_checker: SSLChecker | None = None,
         header_checker: SecurityHeaderChecker | None = None,
         dns_checker: DNSChecker | None = None,
+        redirect_checker: HTTPToHTTPSRedirectChecker | None = None,
     ) -> None:
         self.availability_checker = availability_checker or WebsiteAvailabilityChecker()
         self.ssl_checker = ssl_checker or SSLChecker()
         self.header_checker = header_checker or SecurityHeaderChecker()
         self.dns_checker = dns_checker or DNSChecker()
+        self.redirect_checker = redirect_checker or HTTPToHTTPSRedirectChecker()
 
     def scan(self, target_url: str) -> WebsiteScannerResult:
         """
@@ -74,6 +82,7 @@ class WebsiteScanner:
 
         availability_result = self.availability_checker.check(normalized_url)
         ssl_result = self.ssl_checker.check(normalized_url)
+        redirect_result = self.redirect_checker.check(normalized_url)
         header_result = self.header_checker.check(availability_result.raw_headers)
         dns_result = self.dns_checker.check(domain)
 
@@ -86,6 +95,7 @@ class WebsiteScanner:
             domain=domain,
             availability=availability_result,
             ssl=ssl_result,
+            redirect=redirect_result,
             headers=header_result,
             dns=dns_result,
             technologies_detected=technologies_detected,
@@ -101,6 +111,7 @@ class WebsiteScanner:
             domain=domain,
             availability=availability_result,
             ssl=ssl_result,
+            redirect=redirect_result,
             headers=header_result,
             dns=dns_result,
             technologies_detected=technologies_detected,
