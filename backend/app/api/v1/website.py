@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Any, Mapping, cast
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,7 @@ from app.schemas.website import (
     WebsiteScanResponse,
     WebsiteScanResult,
 )
+from app.services.audit_log_service import write_audit_log
 from app.services.website_scan_service import (
     DEFAULT_AUTHORIZATION_TEXT,
     WebsiteScanPersistenceService,
@@ -105,17 +106,34 @@ def _enforce_scan_domain_authorization(
 )
 def scan_website(
     payload: WebsiteScanRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: AuthenticatedUser = Depends(require_authenticated_user),
 ) -> WebsiteScanResponse:
-    _enforce_scan_domain_authorization(payload.target_url, current_user)
-
     """
     Run the Website Scanner MVP and persist the completed result.
 
     This endpoint is intentionally limited to safe, non-invasive website checks.
     The user must confirm authorization before a scan is executed.
     """
+    try:
+        _enforce_scan_domain_authorization(payload.target_url, current_user)
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            write_audit_log(
+                db,
+                event_type="scan.domain_authorization_blocked",
+                action="website_scan",
+                outcome="blocked",
+                actor_user_id=current_user.id,
+                actor_email=current_user.email,
+                actor_role=current_user.role,
+                target_resource_type="website",
+                target_resource_id=payload.target_url,
+                details={"target_url": payload.target_url},
+                request=request,
+            )
+        raise
 
     if not bool(getattr(payload, "authorization_confirmed", False)):
         raise HTTPException(
@@ -127,6 +145,20 @@ def scan_website(
         )
 
     target_url = _safe_target_url(payload)
+
+    write_audit_log(
+        db,
+        event_type="scan.requested",
+        action="website_scan",
+        outcome="success",
+        actor_user_id=current_user.id,
+        actor_email=current_user.email,
+        actor_role=current_user.role,
+        target_resource_type="website",
+        target_resource_id=target_url,
+        details={"target_url": target_url, "scan_profile": str(payload.scan_profile)},
+        request=request,
+    )
 
     try:
         scanner_result = WebsiteScanner().scan(target_url)

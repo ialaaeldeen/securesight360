@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -21,6 +21,7 @@ from app.core.admin_auth import (
     seed_admin_user,
 )
 from app.database.session import get_db
+from app.services.audit_log_service import write_audit_log
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -346,21 +347,61 @@ def _login_response_for_user(user: AuthenticatedUser) -> LoginResponse:
     status_code=status.HTTP_200_OK,
     summary="Login with a database user account",
 )
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
+def login(
+    payload: LoginRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> LoginResponse:
     email = _validate_email(payload.email)
 
-    _check_login_throttle(email)
+    try:
+        _check_login_throttle(email)
+    except HTTPException:
+        write_audit_log(
+            db,
+            event_type="auth.login_locked",
+            action="login",
+            outcome="blocked",
+            actor_email=email,
+            target_email=email,
+            details={"reason": "too_many_failed_login_attempts"},
+            request=request,
+        )
+        raise
 
     user = authenticate_user(db=db, email=email, password=payload.password)
 
     if user is None:
         _record_failed_login(email)
+        write_audit_log(
+            db,
+            event_type="auth.login_failed",
+            action="login",
+            outcome="failure",
+            actor_email=email,
+            target_email=email,
+            details={"reason": "invalid_credentials"},
+            request=request,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
         )
 
     _clear_failed_logins(email)
+
+    write_audit_log(
+        db,
+        event_type="auth.login_success",
+        action="login",
+        outcome="success",
+        actor_user_id=user.id,
+        actor_email=user.email,
+        actor_role=user.role,
+        target_user_id=user.id,
+        target_email=user.email,
+        request=request,
+    )
 
     return _login_response_for_user(user)
 

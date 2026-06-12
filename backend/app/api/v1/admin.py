@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
+
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
@@ -13,6 +15,7 @@ from app.core.admin_auth import (
     require_admin_user,
 )
 from app.database.session import get_db
+from app.services.audit_log_service import ensure_audit_log_table, write_audit_log
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -341,6 +344,7 @@ def list_admin_users(
 def update_admin_user_role(
     user_id: int,
     payload: UpdateUserRoleRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_admin: AuthenticatedUser = Depends(require_admin_user),
 ) -> dict[str, Any]:
@@ -379,6 +383,22 @@ def update_admin_user_role(
     )
     db.commit()
 
+    write_audit_log(
+        db,
+        event_type="admin.user_role_updated",
+        action="update_user_role",
+        outcome="success",
+        actor_user_id=current_admin.id,
+        actor_email=current_admin.email,
+        actor_role=current_admin.role,
+        target_user_id=user_id,
+        target_email=target_user["email"],
+        target_resource_type="user",
+        target_resource_id=str(user_id),
+        details={"old_role": current_role, "new_role": new_role},
+        request=request,
+    )
+
     return {
         "status": "success",
         "message": "User role updated successfully.",
@@ -395,6 +415,7 @@ def update_admin_user_role(
 def update_admin_user_status(
     user_id: int,
     payload: UpdateUserStatusRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_admin: AuthenticatedUser = Depends(require_admin_user),
 ) -> dict[str, Any]:
@@ -433,12 +454,107 @@ def update_admin_user_status(
     )
     db.commit()
 
+    write_audit_log(
+        db,
+        event_type="admin.user_status_updated",
+        action="update_user_status",
+        outcome="success",
+        actor_user_id=current_admin.id,
+        actor_email=current_admin.email,
+        actor_role=current_admin.role,
+        target_user_id=user_id,
+        target_email=target_user["email"],
+        target_resource_type="user",
+        target_resource_id=str(user_id),
+        details={"old_is_active": target_is_active, "new_is_active": new_is_active},
+        request=request,
+    )
+
     return {
         "status": "success",
         "message": "User status updated successfully.",
         "user": _refresh_user_row(db, user_id),
     }
 
+
+
+
+@router.get(
+    "/audit-logs",
+    response_model=list[dict[str, Any]],
+    status_code=status.HTTP_200_OK,
+    summary="List recent audit logs",
+)
+def list_admin_audit_logs(
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    _: AuthenticatedUser = Depends(require_admin_user),
+) -> list[dict[str, Any]]:
+    ensure_audit_log_table(db)
+
+    safe_limit = max(1, min(int(limit), 500))
+
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                id,
+                event_type,
+                action,
+                outcome,
+                actor_user_id,
+                actor_email,
+                actor_role,
+                target_user_id,
+                target_email,
+                target_resource_type,
+                target_resource_id,
+                ip_address,
+                user_agent,
+                details_json,
+                created_at
+            FROM audit_logs
+            ORDER BY id DESC
+            LIMIT :limit
+            """
+        ),
+        {"limit": safe_limit},
+    ).mappings().all()
+
+    logs: list[dict[str, Any]] = []
+
+    for row in rows:
+        details: dict[str, Any] = {}
+
+        if row["details_json"]:
+            try:
+                parsed = json.loads(row["details_json"])
+                if isinstance(parsed, dict):
+                    details = parsed
+            except json.JSONDecodeError:
+                details = {"raw": row["details_json"]}
+
+        logs.append(
+            {
+                "id": row["id"],
+                "event_type": row["event_type"],
+                "action": row["action"],
+                "outcome": row["outcome"],
+                "actor_user_id": row["actor_user_id"],
+                "actor_email": row["actor_email"],
+                "actor_role": row["actor_role"],
+                "target_user_id": row["target_user_id"],
+                "target_email": row["target_email"],
+                "target_resource_type": row["target_resource_type"],
+                "target_resource_id": row["target_resource_id"],
+                "ip_address": row["ip_address"],
+                "user_agent": row["user_agent"],
+                "details": details,
+                "created_at": row["created_at"],
+            }
+        )
+
+    return logs
 
 
 @router.get(

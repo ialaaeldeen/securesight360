@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Users,
   ListChecks,
+  ShieldAlert,
   LogOut,
   ArrowLeft,
 } from "lucide-react";
@@ -99,6 +100,7 @@ function AdminLayout() {
           />
           <NavLink to="/admin/users" label="Users" icon={Users} />
           <NavLink to="/admin/scans" label="Scans" icon={ListChecks} />
+          <NavLink to="/admin/audit" label="Audit Logs" icon={ShieldAlert} />
         </nav>
 
         <div className="mt-auto px-3 pb-3 space-y-2">
