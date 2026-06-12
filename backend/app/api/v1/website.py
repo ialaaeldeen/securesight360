@@ -5,6 +5,7 @@ from dataclasses import asdict, is_dataclass
 from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any, Mapping, cast
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import ValidationError as PydanticValidationError
@@ -27,6 +28,74 @@ from app.services.website_scan_service import (
 
 router = APIRouter(prefix="/website", tags=["Website Scanner"])
 
+def _is_admin_scan_user(user: AuthenticatedUser) -> bool:
+    role = str(getattr(user, "role", "") or "").strip().lower()
+    return role in {"admin", "super_admin", "owner"}
+
+
+def _domain_from_email(email: str) -> str:
+    normalized = str(email or "").strip().lower()
+
+    if "@" not in normalized:
+        return ""
+
+    return normalized.rsplit("@", 1)[1].strip().rstrip(".")
+
+
+def _hostname_from_target_url(target_url: str) -> str:
+    normalized = str(target_url or "").strip()
+
+    if not normalized:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Target URL is required.",
+        )
+
+    parsed = urlparse(normalized)
+
+    hostname = parsed.hostname
+
+    if not hostname:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Target URL must include a valid hostname.",
+        )
+
+    return hostname.strip().lower().rstrip(".")
+
+
+def _hostname_matches_registered_domain(hostname: str, registered_domain: str) -> bool:
+    host = hostname.strip().lower().rstrip(".")
+    domain = registered_domain.strip().lower().rstrip(".")
+
+    if not host or not domain:
+        return False
+
+    return host == domain or host.endswith(f".{domain}")
+
+
+def _enforce_scan_domain_authorization(
+    target_url: str,
+    current_user: AuthenticatedUser,
+) -> None:
+    if _is_admin_scan_user(current_user):
+        return
+
+    user_domain = _domain_from_email(current_user.email)
+    target_hostname = _hostname_from_target_url(target_url)
+
+    if _hostname_matches_registered_domain(target_hostname, user_domain):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=(
+            "This account is authorized to scan only its registered business "
+            "domain and subdomains."
+        ),
+    )
+
+
 
 @router.post(
     "/scan",
@@ -39,6 +108,8 @@ def scan_website(
     db: Session = Depends(get_db),
     current_user: AuthenticatedUser = Depends(require_authenticated_user),
 ) -> WebsiteScanResponse:
+    _enforce_scan_domain_authorization(payload.target_url, current_user)
+
     """
     Run the Website Scanner MVP and persist the completed result.
 
