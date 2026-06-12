@@ -26,6 +26,25 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+PASSWORD_SPECIAL_PATTERN = re.compile(r"[^A-Za-z0-9]")
+
+COMMON_WEAK_PASSWORDS = {
+    "password",
+    "password1",
+    "password12",
+    "password123",
+    "password1234",
+    "admin",
+    "admin123",
+    "admin1234",
+    "qwerty",
+    "qwerty123",
+    "welcome",
+    "welcome123",
+    "letmein",
+    "secure123",
+    "changeme",
+}
 
 PERSONAL_EMAIL_DOMAINS = {
     "gmail.com",
@@ -119,6 +138,31 @@ def _validate_password(password: str) -> str:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Password must be at least 8 characters.",
+        )
+
+    lowered_password = password.lower()
+
+    if lowered_password in COMMON_WEAK_PASSWORDS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password is too common. Please choose a stronger password.",
+        )
+
+    if not any(character.islower() for character in password):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password must include at least one lowercase letter.",
+        )
+
+    if not any(character.isupper() for character in password):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password must include at least one uppercase letter.",
+        )
+if PASSWORD_SPECIAL_PATTERN.search(password) is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password must include at least one special character.",
         )
 
     return password
