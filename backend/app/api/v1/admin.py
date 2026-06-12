@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, Field
 
 from app.core.admin_auth import (
     AuthenticatedUser,
@@ -14,6 +15,96 @@ from app.core.admin_auth import (
 from app.database.session import get_db
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+
+
+ALLOWED_ADMIN_ROLES = {"user", "admin"}
+
+
+class UpdateUserRoleRequest(BaseModel):
+    role: str = Field(..., min_length=1, max_length=20)
+
+
+class UpdateUserStatusRequest(BaseModel):
+    is_active: bool
+
+
+def _normalize_admin_role(role: str) -> str:
+    normalized = str(role or "").strip().lower()
+
+    if normalized not in ALLOWED_ADMIN_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Role must be either 'user' or 'admin'.",
+        )
+
+    return normalized
+
+
+def _get_user_row_by_id(db: Session, user_id: int) -> dict[str, Any]:
+    ensure_auth_tables(db)
+
+    row = db.execute(
+        text(
+            """
+            SELECT
+                id,
+                email,
+                full_name,
+                role,
+                is_active,
+                created_at,
+                updated_at,
+                last_login_at
+            FROM users
+            WHERE id = :user_id
+            LIMIT 1
+            """
+        ),
+        {"user_id": user_id},
+    ).mappings().first()
+
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User was not found.",
+        )
+
+    return dict(row)
+
+
+def _count_active_admins(db: Session) -> int:
+    ensure_auth_tables(db)
+
+    row = db.execute(
+        text(
+            """
+            SELECT COUNT(*) AS total
+            FROM users
+            WHERE LOWER(role) = 'admin'
+              AND is_active = 1
+            """
+        )
+    ).mappings().first()
+
+    return int(row["total"] or 0) if row else 0
+
+
+def _serialize_admin_user(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "email": row["email"],
+        "full_name": row["full_name"],
+        "role": row["role"],
+        "is_active": bool(row["is_active"]),
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+        "last_login_at": row["last_login_at"],
+    }
+
+
+def _refresh_user_row(db: Session, user_id: int) -> dict[str, Any]:
+    return _serialize_admin_user(_get_user_row_by_id(db, user_id))
+
 
 
 def _table_exists(db: Session, table_name: str) -> bool:
@@ -238,6 +329,116 @@ def list_admin_users(
         )
 
     return users
+
+
+
+@router.patch(
+    "/users/{user_id}/role",
+    response_model=dict[str, Any],
+    status_code=status.HTTP_200_OK,
+    summary="Update a user's role",
+)
+def update_admin_user_role(
+    user_id: int,
+    payload: UpdateUserRoleRequest,
+    db: Session = Depends(get_db),
+    current_admin: AuthenticatedUser = Depends(require_admin_user),
+) -> dict[str, Any]:
+    target_user = _get_user_row_by_id(db, user_id)
+    new_role = _normalize_admin_role(payload.role)
+    current_role = str(target_user["role"] or "").strip().lower()
+    target_is_active = bool(target_user["is_active"])
+
+    if int(current_admin.id) == int(user_id) and new_role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You cannot remove your own admin role.",
+        )
+
+    if (
+        current_role == "admin"
+        and new_role != "admin"
+        and target_is_active
+        and _count_active_admins(db) <= 1
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot remove the last active admin account.",
+        )
+
+    db.execute(
+        text(
+            """
+            UPDATE users
+            SET role = :role,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :user_id
+            """
+        ),
+        {"role": new_role, "user_id": user_id},
+    )
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": "User role updated successfully.",
+        "user": _refresh_user_row(db, user_id),
+    }
+
+
+@router.patch(
+    "/users/{user_id}/status",
+    response_model=dict[str, Any],
+    status_code=status.HTTP_200_OK,
+    summary="Activate or deactivate a user",
+)
+def update_admin_user_status(
+    user_id: int,
+    payload: UpdateUserStatusRequest,
+    db: Session = Depends(get_db),
+    current_admin: AuthenticatedUser = Depends(require_admin_user),
+) -> dict[str, Any]:
+    target_user = _get_user_row_by_id(db, user_id)
+    new_is_active = bool(payload.is_active)
+    current_role = str(target_user["role"] or "").strip().lower()
+    target_is_active = bool(target_user["is_active"])
+
+    if int(current_admin.id) == int(user_id) and not new_is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You cannot deactivate your own admin account.",
+        )
+
+    if (
+        current_role == "admin"
+        and target_is_active
+        and not new_is_active
+        and _count_active_admins(db) <= 1
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot deactivate the last active admin account.",
+        )
+
+    db.execute(
+        text(
+            """
+            UPDATE users
+            SET is_active = :is_active,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :user_id
+            """
+        ),
+        {"is_active": 1 if new_is_active else 0, "user_id": user_id},
+    )
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": "User status updated successfully.",
+        "user": _refresh_user_row(db, user_id),
+    }
+
 
 
 @router.get(
