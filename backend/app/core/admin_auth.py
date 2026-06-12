@@ -74,11 +74,14 @@ def _normalize_email(email: str) -> str:
 
 
 def _get_auth_secret() -> str:
-    return _get_setting(
-        "SECURESIGHT360_AUTH_SECRET_KEY",
-        "change-this-dev-secret-key-securesight360",
-    )
+    secret = _get_setting("SECURESIGHT360_AUTH_SECRET_KEY", "")
 
+    if not secret:
+        raise RuntimeError(
+            "SECURESIGHT360_AUTH_SECRET_KEY must be set in environment variables or backend/.env."
+        )
+
+    return secret
 
 def _get_admin_email() -> str:
     return _normalize_email(
