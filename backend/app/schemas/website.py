@@ -453,6 +453,16 @@ class WebsiteScanResult(BaseModel):
         description="True if DMARC record is found.",
     )
 
+    caa_found: bool | None = Field(
+        default=None,
+        description="True if CAA records are found for certificate issuance control.",
+    )
+
+    caa_records: list[str] = Field(
+        default_factory=list,
+        description="CAA DNS records controlling which certificate authorities may issue certificates.",
+    )
+
     dkim_guidance: str | None = Field(
         default=None,
         description="DKIM guidance because selectors cannot always be detected safely.",

@@ -21,6 +21,9 @@ class DNSCheckResult:
     records: dict[str, list[str]] = field(default_factory=dict)
     spf_found: bool | None = None
     dmarc_found: bool | None = None
+    caa_found: bool | None = None
+    caa_records: list[str] = field(default_factory=list)
+    caa: dict[str, object] = field(default_factory=dict)
     dkim_guidance: str | None = None
     errors: dict[str, str] = field(default_factory=dict)
 
@@ -33,10 +36,11 @@ class DNSChecker:
     - Query common DNS records safely.
     - Check SPF record presence from TXT records.
     - Check DMARC record presence from _dmarc.domain.
+    - Check CAA records for certificate issuance control.
     - Provide DKIM guidance without guessing selectors aggressively.
     """
 
-    DEFAULT_RECORD_TYPES: tuple[str, ...] = ("A", "AAAA", "MX", "NS", "TXT")
+    DEFAULT_RECORD_TYPES: tuple[str, ...] = ("A", "AAAA", "MX", "NS", "TXT", "CAA")
 
     def __init__(self, timeout_seconds: int | None = None) -> None:
         self.timeout_seconds = timeout_seconds or settings.REQUEST_TIMEOUT_SECONDS
@@ -78,11 +82,23 @@ class DNSChecker:
 
         dmarc_found = self._has_dmarc_record(dmarc_records)
 
+        caa_records = records.get("CAA", [])
+        caa_found = self._has_caa_record(caa_records)
+        caa_evidence = {
+            "present": caa_found,
+            "records": caa_records,
+            "value": "; ".join(caa_records) if caa_records else None,
+            "status": "present" if caa_found else "missing",
+        }
+
         return DNSCheckResult(
             domain=normalized_domain,
             records=records,
             spf_found=spf_found,
             dmarc_found=dmarc_found,
+            caa_found=caa_found,
+            caa_records=caa_records,
+            caa=caa_evidence,
             dkim_guidance=self._build_dkim_guidance(normalized_domain),
             errors=errors,
         )
@@ -151,6 +167,14 @@ class DNSChecker:
         """
 
         return any(record.lower().startswith("v=dmarc1") for record in txt_records)
+
+    @staticmethod
+    def _has_caa_record(caa_records: list[str]) -> bool:
+        """
+        Check whether CAA records are published for certificate issuance control.
+        """
+
+        return bool(caa_records)
 
     @staticmethod
     def _build_dkim_guidance(domain: str) -> str:

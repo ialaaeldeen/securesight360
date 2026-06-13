@@ -408,6 +408,24 @@ def _build_scan_result(
         )
     )
 
+    caa_records = []
+    if isinstance(dns_email_payload, Mapping):
+        caa_records_value = _first_not_none(
+            dns_email_payload.get("caa_records"),
+            dns_email_payload.get("records", {}).get("CAA")
+            if isinstance(dns_email_payload.get("records"), Mapping)
+            else None,
+        )
+        if isinstance(caa_records_value, list):
+            caa_records = [str(record) for record in caa_records_value if str(record).strip()]
+
+    caa_found = None
+    if isinstance(dns_email_payload, Mapping):
+        caa_found = _first_not_none(
+            dns_email_payload.get("caa_found"),
+            bool(caa_records) if caa_records else None,
+        )
+
     result_payload = {
         "original_url": target_url,
         "target_url": target_url,
@@ -427,6 +445,8 @@ def _build_scan_result(
         "ssl": ssl_tls_payload,
         "dns_email_security": dns_email_payload,
         "dns_security": dns_email_payload,
+        "caa_found": caa_found,
+        "caa_records": caa_records,
         "risk_assessment": _build_optional_model(
             WebsiteRiskAssessment,
             risk_payload,
@@ -448,6 +468,7 @@ def _build_scan_result(
                     "security_headers": bool(security_headers_payload),
                     "ssl_tls": bool(ssl_tls_payload),
                     "dns_email_security": bool(dns_email_payload),
+                    "caa": caa_found is not None,
                     "https_redirect": bool(redirect_security_payload),
                     "risk_assessment": bool(risk_payload),
                 },

@@ -1017,6 +1017,7 @@ class RiskEngine:
         dmarc = _record_state(data, "dmarc")
         dkim = _record_state(data, "dkim")
         dnssec = _record_state(data, "dnssec")
+        caa = _caa_record_state(data)
 
         if spf.is_missing:
             deductions.append(
@@ -1149,6 +1150,34 @@ class RiskEngine:
                 )
             )
 
+        if caa.is_missing:
+            deductions.append(
+                _dns_deduction(
+                    rule_id="DNS-006",
+                    title="CAA DNS record not detected",
+                    severity=Severity.LOW,
+                    deduction=2,
+                    evidence=caa.evidence,
+                    impact=(
+                        "The domain does not explicitly restrict which certificate "
+                        "authorities are allowed to issue TLS certificates for it."
+                    ),
+                    recommendation=(
+                        "Publish CAA records authorizing the organization's trusted "
+                        "certificate authorities."
+                    ),
+                )
+            )
+        elif caa.is_present:
+            positive_signals.append(
+                PositiveSignal(
+                    title="CAA DNS record detected",
+                    category="DNS & Email Security",
+                    evidence=_record_evidence(caa),
+                    mappings=DEFAULT_MAPPINGS["security_misconfiguration"],
+                )
+            )
+
     def _evaluate_exposed_ports(
         self,
         data: Any,
@@ -1194,7 +1223,7 @@ class RiskEngine:
                     title="Sensitive network service exposed",
                     category="Exposure Management",
                     severity=highest,
-                    deduction=deduction,
+                    deduction=_calibrated_deduction_for_severity(severity, deduction),
                     evidence=", ".join(
                         f"{finding.port}/{finding.service}"
                         for finding in risky_findings
@@ -1318,7 +1347,7 @@ def _deduction(
         title=title,
         category=category,
         severity=severity,
-        deduction=deduction,
+        deduction=_calibrated_deduction_for_severity(severity, deduction),
         evidence=evidence or "No detailed evidence supplied by scanner output.",
         business_impact=business_impact,
         recommendation=recommendation,
@@ -1326,6 +1355,29 @@ def _deduction(
         confidence=confidence,
         mappings=mappings,
     )
+
+
+def _calibrated_deduction_for_severity(severity: Severity, requested_deduction: int) -> int:
+    """
+    Convert technical findings into fair business scoring units.
+
+    Low:      -1  hardening / hygiene gap
+    Medium:   -2  meaningful weakness
+    High:     -3  important business risk
+    Critical: -4  confirmed dangerous exposure
+
+    The requested deduction is treated as an upper bound so calibration never
+    increases the impact of an existing rule.
+    """
+
+    severity_units = {
+        Severity.LOW: 1,
+        Severity.MEDIUM: 2,
+        Severity.HIGH: 3,
+        Severity.CRITICAL: 4,
+    }
+
+    return min(max(requested_deduction, 0), severity_units.get(severity, 1))
 
 
 def _missing_header_deduction(
@@ -1895,6 +1947,33 @@ def _record_state_from_value(record_name: str, value: Any, key_hint: str) -> Rec
             ),
         )
 
+    if isinstance(value, (list, tuple, set)):
+        cleaned_values = [
+            _clean_text(item)
+            for item in value
+            if _clean_text(item)
+            and _clean_text(item).lower() not in MISSING_STATUS_TERMS
+        ]
+
+        if not cleaned_values:
+            return RecordState(
+                name=record_name,
+                present=False,
+                evidence=f"record={key_hint}; values=0",
+            )
+
+        joined_value = "; ".join(cleaned_values)
+
+        return RecordState(
+            name=record_name,
+            present=True,
+            value=joined_value,
+            evidence=(
+                f"record={key_hint}; values={len(cleaned_values)}; "
+                f"value={_truncate(joined_value)}"
+            ),
+        )
+
     if isinstance(value, bool):
         return RecordState(
             name=record_name,
@@ -1917,6 +1996,112 @@ def _record_state_from_value(record_name: str, value: Any, key_hint: str) -> Rec
         value=value_text,
         evidence=f"record={key_hint}; value={_truncate(value_text)}",
     )
+
+
+def _caa_record_state(data: Any) -> RecordState:
+    """
+    Extract CAA evidence from explicit DNS scanner fields.
+
+    CAA must be read carefully because empty DNS record lists such as
+    records["CAA"] = [] mean the record is missing, not present.
+    """
+
+    for node in _iter_mappings(data):
+        explicit_present = _mapping_get_normalized(node, "caa_found")
+        explicit_records = _mapping_get_normalized(node, "caa_records")
+        explicit_caa = _mapping_get_normalized(node, "caa")
+
+        if explicit_present is not None or explicit_records is not None:
+            present = _as_bool(explicit_present)
+            records = _clean_record_values(explicit_records)
+
+            if present is None:
+                present = bool(records)
+
+            return RecordState(
+                name="caa",
+                present=present,
+                value="; ".join(records) if records else None,
+                status="present" if present else "missing",
+                evidence=(
+                    f"caa_found={present}; "
+                    f"records={len(records)}"
+                    + (f"; value={_truncate('; '.join(records))}" if records else "")
+                ),
+            )
+
+        if isinstance(explicit_caa, Mapping):
+            present = _as_bool(_mapping_get_normalized(explicit_caa, "present"))
+            records = _clean_record_values(_mapping_get_normalized(explicit_caa, "records"))
+            record_value = _first_text_from_mapping(explicit_caa, ("value", "record", "txt", "policy"))
+            status = _first_text_from_mapping(explicit_caa, ("status", "state", "result"))
+
+            if present is None:
+                present = bool(records) or _presence_from_status_or_value(status, record_value)
+
+            return RecordState(
+                name="caa",
+                present=present,
+                value=record_value or ("; ".join(records) if records else None),
+                status=status or ("present" if present else "missing"),
+                evidence=(
+                    f"record=caa; present={present}; records={len(records)}"
+                    + (f"; value={_truncate(record_value)}" if record_value else "")
+                ),
+            )
+
+        records_node = _mapping_get_normalized(node, "records")
+        if isinstance(records_node, Mapping):
+            for record_key, record_value in records_node.items():
+                if _normalize_key(str(record_key)) == "caa":
+                    records = _clean_record_values(record_value)
+                    return RecordState(
+                        name="caa",
+                        present=bool(records),
+                        value="; ".join(records) if records else None,
+                        status="present" if records else "missing",
+                        evidence=(
+                            f"record=records.CAA; records={len(records)}"
+                            + (f"; value={_truncate('; '.join(records))}" if records else "")
+                        ),
+                    )
+
+    return RecordState(
+        name="caa",
+        present=None,
+        evidence="No CAA evidence was supplied by the scanner output.",
+    )
+
+
+def _clean_record_values(value: Any) -> list[str]:
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        cleaned = _clean_text(value)
+        if not cleaned or cleaned.lower() in MISSING_STATUS_TERMS:
+            return []
+        return [cleaned]
+
+    if isinstance(value, Mapping):
+        candidate = _first_text_from_mapping(value, ("value", "record", "txt", "policy"))
+        cleaned = _clean_text(candidate)
+        if not cleaned or cleaned.lower() in MISSING_STATUS_TERMS:
+            return []
+        return [cleaned]
+
+    if isinstance(value, (list, tuple, set)):
+        cleaned_values: list[str] = []
+        for item in value:
+            cleaned = _clean_text(item)
+            if cleaned and cleaned.lower() not in MISSING_STATUS_TERMS:
+                cleaned_values.append(cleaned)
+        return cleaned_values
+
+    cleaned = _clean_text(value)
+    if not cleaned or cleaned.lower() in MISSING_STATUS_TERMS:
+        return []
+    return [cleaned]
 
 
 def _extract_open_ports(data: Any) -> set[int]:
@@ -2252,7 +2437,7 @@ def _assessment_coverage(data: Any, target: str | None) -> dict[str, bool]:
         "http_security_headers": bool(_collect_header_observations(data)),
         "dns_email_security": any(
             _record_state(data, record).present is not None
-            for record in ("spf", "dmarc", "dkim", "dnssec")
+            for record in ("spf", "dmarc", "dkim", "dnssec", "caa")
         ),
         "https_redirect": _extract_https_redirect_node(data) is not None,
         "exposure_management": bool(_extract_open_ports(data)),
@@ -2359,36 +2544,24 @@ def _build_detection_summary(
 
 
 def _risk_level_for_score(score: int) -> RiskLevel:
-    if score >= 95:
+    if score >= 90:
         return RiskLevel.MINIMAL
-    if score >= 85:
+    if score >= 80:
         return RiskLevel.LOW
-    if score >= 70:
+    if score >= 65:
         return RiskLevel.MODERATE
-    if score >= 50:
+    if score >= 40:
         return RiskLevel.HIGH
     return RiskLevel.CRITICAL
 
 
 def _grade_for_score(score: int) -> str:
-    if score >= 95:
-        return "A+"
     if score >= 90:
-        return "A"
-    if score >= 85:
-        return "A-"
+        return "Excellent"
     if score >= 80:
-        return "B+"
-    if score >= 75:
-        return "B"
-    if score >= 70:
-        return "B-"
+        return "Strong"
     if score >= 65:
-        return "C+"
-    if score >= 60:
-        return "C"
-    if score >= 55:
-        return "C-"
-    if score >= 50:
-        return "D"
-    return "F"
+        return "Moderate"
+    if score >= 40:
+        return "Weak"
+    return "Critical"
