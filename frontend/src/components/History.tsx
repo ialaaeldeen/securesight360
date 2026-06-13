@@ -304,7 +304,7 @@ export function History() {
 
                 <div className="rounded-xl border border-border bg-surface/60 px-4 py-3 text-center">
                   <div className="text-lg font-bold text-accent-blue">{r.grade}</div>
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Grade</div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Security Rating</div>
                 </div>
 
                 <div className="rounded-xl border border-border bg-surface/60 px-4 py-3 text-center">

@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Sun, Moon, LogOut, User, Bell, Globe, Shield, KeyRound, Trash2,
   Save, Mail, Languages, Eye, EyeOff, Download, Database, Sparkles, Check,
 } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useI18n, LANG_META, type Lang } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 
 interface Props {
   onLogout: () => void;
@@ -14,16 +15,19 @@ interface Props {
 export function Settings({ onLogout }: Props) {
   const { theme, setTheme } = useTheme();
   const { lang, setLang } = useI18n();
+  const { user, refresh } = useAuth();
   const [tab, setTab] = useState<"profile" | "appearance" | "security" | "scanner" | "notifications" | "data">("profile");
   const [saved, setSaved] = useState(false);
 
-  // profile — sourced from the account that was registered & verified at signup.
-  const get = (k: string) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
-  const [name] = useState(() => get("cs360-user-name"));
-  const [email] = useState(() => get("cs360-user-email"));
-  const [org] = useState(() => get("cs360-company-name"));
-  const [companyDomain] = useState(() => get("cs360-company-domain"));
-  const [registeredAt] = useState(() => get("cs360-registered-at"));
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const email = user?.email?.trim() ?? "";
+  const name = user?.full_name?.trim() || email.split("@")[0] || "";
+  const companyDomain = user?.company_domain?.trim() || deriveEmailDomain(email);
+  const org = companyDomain ? organizationFromDomain(companyDomain) : "";
+  const registeredAt = user?.created_at ? new Date(user.created_at).toLocaleString() : "";
 
   // security
   const [showKey, setShowKey] = useState(false);
@@ -106,7 +110,7 @@ export function Settings({ onLogout }: Props) {
           {tab === "profile" && (
             <Card
               title="Registered account"
-              desc="These details were captured when this workspace was created and verified. They cannot be edited here — log out and re-register to change them."
+              desc="These details are loaded from your authenticated backend account. Your verified company domain controls which websites this account can scan."
             >
               <div className="grid md:grid-cols-2 gap-4">
                 <ReadOnlyField label="Registrant name" icon={User} value={name} />
@@ -120,9 +124,9 @@ export function Settings({ onLogout }: Props) {
                 />
                 <SelectField label="Preferred language" icon={Languages} value={lang} onChange={(v) => setLang(v as Lang)} options={(Object.keys(LANG_META) as Lang[]).map(k => ({ v: k, l: `${LANG_META[k].flag} ${LANG_META[k].native}` }))} />
               </div>
-              {!email && (
+              {!user && (
                 <div className="mt-4 rounded-xl border border-warning/30 bg-warning/10 text-warning text-xs px-3 py-2">
-                  No registered account details were found on this device. Please log out and complete signup again.
+                  Account details could not be loaded from the backend. Please refresh or log in again.
                 </div>
               )}
             </Card>
@@ -232,6 +236,17 @@ export function Settings({ onLogout }: Props) {
       </div>
     </div>
   );
+}
+
+
+function deriveEmailDomain(email: string): string {
+  const parts = email.trim().toLowerCase().split("@");
+  return parts.length === 2 ? parts[1] : "";
+}
+
+function organizationFromDomain(domain: string): string {
+  const firstLabel = domain.split(".")[0] || "";
+  return firstLabel ? firstLabel.toUpperCase() : "";
 }
 
 function Card({ title, desc, children, danger }: { title: string; desc?: string; children: React.ReactNode; danger?: boolean }) {

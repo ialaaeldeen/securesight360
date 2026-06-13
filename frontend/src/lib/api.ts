@@ -12,6 +12,10 @@ export interface BackendUser {
   email: string;
   role: "admin" | "user" | string;
   full_name?: string | null;
+  company_domain?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  last_login_at?: string | null;
 }
 
 export function getToken(): string | null {

@@ -185,6 +185,47 @@ export default function AdminUsersPage() {
     }
   }
 
+
+  async function deleteUser(user: AdminUser) {
+    const isSelf = currentUser?.id === user.id;
+
+    if (isSelf) {
+      setError("You cannot delete your own admin account.");
+      return;
+    }
+
+    const confirmed = confirm(
+      `Delete ${user.email}? This will deactivate and anonymize the account while preserving historical scan records for audit integrity.`
+    );
+
+    if (!confirmed) return;
+
+    setSavingUserId(user.id);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const response = (await apiFetch(`/api/v1/admin/users/${user.id}`, {
+        method: "DELETE",
+      })) as {
+        message?: string;
+        deleted_user_id?: number;
+        retained_scan_records?: number;
+      };
+
+      setUsers((previous) => previous.filter((item) => item.id !== user.id));
+
+      setNotice(
+        response.message ||
+          "User account deleted safely. Historical scan records were retained."
+      );
+    } catch (err: any) {
+      setError(err?.message || "Could not delete user account.");
+    } finally {
+      setSavingUserId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="glass rounded-2xl p-6 md:p-8 relative overflow-hidden">
@@ -278,7 +319,7 @@ export default function AdminUsersPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] text-sm">
+            <table className="w-full min-w-[1080px] text-sm">
               <thead className="border-b border-border bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="px-5 py-4 text-left">User</th>
@@ -383,6 +424,21 @@ export default function AdminUsersPage() {
 
                           {user.is_active ? "Deactivate" : "Activate"}
                         </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteUser(user)}
+                            disabled={saving || isSelf}
+                            className="ml-2 inline-flex items-center justify-center gap-1 rounded-lg border border-red-800/50 bg-red-950/30 px-3 py-1.5 text-xs text-red-300 transition hover:bg-red-950/50 disabled:cursor-not-allowed disabled:opacity-40"
+                            title={
+                              isSelf
+                                ? "You cannot delete your own account"
+                                : "Delete user safely"
+                            }
+                          >
+                            <UserX className="h-3.5 w-3.5" />
+                            Delete
+                          </button>
+
                       </td>
                     </tr>
                   );

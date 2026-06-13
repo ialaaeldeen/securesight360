@@ -162,6 +162,10 @@ class UserResponse(BaseModel):
     email: str
     role: str
     full_name: str | None = None
+    company_domain: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    last_login_at: str | None = None
 
 
 class LoginResponse(BaseModel):
@@ -326,7 +330,35 @@ def _create_normal_user(
     )
 
 
-def _login_response_for_user(user: AuthenticatedUser) -> LoginResponse:
+def _public_user_response(
+    user: AuthenticatedUser,
+    db: Session | None = None,
+) -> UserResponse:
+    payload = dict(user.to_dict())
+    payload["company_domain"] = _email_domain(user.email)
+
+    if db is not None:
+        row = db.execute(
+            text(
+                """
+                SELECT created_at, updated_at, last_login_at
+                FROM users
+                WHERE id = :user_id
+                LIMIT 1
+                """
+            ),
+            {"user_id": user.id},
+        ).mappings().first()
+
+        if row is not None:
+            payload["created_at"] = str(row.get("created_at") or "")
+            payload["updated_at"] = str(row.get("updated_at") or "")
+            payload["last_login_at"] = str(row.get("last_login_at") or "")
+
+    return UserResponse(**payload)
+
+
+def _login_response_for_user(user: AuthenticatedUser, db: Session | None = None) -> LoginResponse:
     token = create_access_token(
         user_id=user.id,
         email=user.email,
@@ -337,7 +369,7 @@ def _login_response_for_user(user: AuthenticatedUser) -> LoginResponse:
     return LoginResponse(
         access_token=token,
         expires_in=DEFAULT_TOKEN_EXPIRE_SECONDS,
-        user=UserResponse(**user.to_dict()),
+        user=_public_user_response(user, db),
     )
 
 
@@ -403,7 +435,7 @@ def login(
         request=request,
     )
 
-    return _login_response_for_user(user)
+    return _login_response_for_user(user, db)
 
 
 @router.post(
@@ -425,7 +457,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> LoginRe
         full_name=full_name,
     )
 
-    return _login_response_for_user(user)
+    return _login_response_for_user(user, db)
 
 
 @router.get(
@@ -435,9 +467,10 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> LoginRe
     summary="Get current authenticated user",
 )
 def get_current_user_profile(
+    db: Session = Depends(get_db),
     current_user: AuthenticatedUser = Depends(require_authenticated_user),
 ) -> UserResponse:
-    return UserResponse(**current_user.to_dict())
+    return _public_user_response(current_user, db)
 
 
 @router.post(

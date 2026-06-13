@@ -1376,13 +1376,16 @@ def _history_score_to_risk_level(score):
     if numeric_score is None:
         return "unknown"
 
-    if numeric_score >= 85:
+    if numeric_score >= 90:
+        return "minimal"
+
+    if numeric_score >= 80:
         return "low"
 
-    if numeric_score >= 70:
-        return "medium"
+    if numeric_score >= 65:
+        return "moderate"
 
-    if numeric_score >= 50:
+    if numeric_score >= 40:
         return "high"
 
     return "critical"
@@ -1392,21 +1395,21 @@ def _history_score_to_grade(score):
     numeric_score = _history_as_number(score)
 
     if numeric_score is None:
-        return "N/A"
+        return "Not Rated"
 
     if numeric_score >= 90:
-        return "A"
+        return "Excellent"
 
     if numeric_score >= 80:
-        return "B"
+        return "Strong"
 
-    if numeric_score >= 70:
-        return "C"
+    if numeric_score >= 65:
+        return "Moderate"
 
-    if numeric_score >= 60:
-        return "D"
+    if numeric_score >= 40:
+        return "Weak"
 
-    return "F"
+    return "Critical"
 
 
 def _history_build_item(row, findings_count=None):
@@ -1419,8 +1422,25 @@ def _history_build_item(row, findings_count=None):
     if resolved_findings_count is None:
         resolved_findings_count = row_data.get("findings_count", 0)
 
+    risk_assessment = row_data.get("risk_assessment")
+    if not isinstance(risk_assessment, dict):
+        risk_assessment = {}
+
+    risk_level = (
+        row_data.get("risk_level")
+        or risk_assessment.get("risk_level")
+        or _history_score_to_risk_level(security_score)
+    )
+
+    security_rating = (
+        row_data.get("grade")
+        or risk_assessment.get("grade")
+        or _history_score_to_grade(security_score)
+    )
+
     return {
         "scan_id": scan_id,
+        "id": scan_id,
         "user_id": row_data.get("user_id"),
         "user_email": row_data.get("user_email"),
         "user_full_name": row_data.get("user_full_name"),
@@ -1436,14 +1456,76 @@ def _history_build_item(row, findings_count=None):
         "target_type": row_data.get("target_type", "website"),
         "status": _history_as_text(row_data.get("status"), "unknown").lower(),
         "security_score": security_score,
-        "risk_level": _history_score_to_risk_level(security_score),
-        "grade": _history_score_to_grade(security_score),
+        "risk_level": str(risk_level).lower(),
+        "grade": str(security_rating),
+        "security_rating": str(security_rating),
         "findings_count": int(resolved_findings_count or 0),
         "authorization_confirmed": bool(row_data.get("authorization_confirmed", False)),
         "started_at": row_data.get("started_at"),
         "completed_at": row_data.get("completed_at"),
         "error_message": row_data.get("error_message"),
+        "risk_assessment": risk_assessment or None,
+        "executive_summary": risk_assessment.get("executive_summary"),
+        "detection_summary": risk_assessment.get("detection_summary"),
+        "priority_actions": risk_assessment.get("priority_actions"),
+        "positive_security_signals": risk_assessment.get("positive_security_signals"),
+        "severity_counts": risk_assessment.get("severity_counts"),
+        "category_counts": risk_assessment.get("category_counts"),
     }
+
+
+
+def _history_apply_risk_assessment_to_item(item, risk_assessment):
+    if not isinstance(risk_assessment, dict) or not risk_assessment:
+        return item
+
+    enriched = dict(item)
+    enriched["risk_assessment"] = risk_assessment
+    enriched["security_score"] = risk_assessment.get("security_score", enriched.get("security_score"))
+    enriched["risk_level"] = str(
+        risk_assessment.get("risk_level") or enriched.get("risk_level") or "unknown"
+    ).lower()
+    enriched["grade"] = str(risk_assessment.get("grade") or enriched.get("grade") or "Not Rated")
+    enriched["security_rating"] = enriched["grade"]
+    enriched["executive_summary"] = risk_assessment.get("executive_summary")
+    enriched["detection_summary"] = risk_assessment.get("detection_summary")
+    enriched["priority_actions"] = risk_assessment.get("priority_actions")
+    enriched["positive_security_signals"] = risk_assessment.get("positive_security_signals")
+    enriched["severity_counts"] = risk_assessment.get("severity_counts")
+    enriched["category_counts"] = risk_assessment.get("category_counts")
+    return enriched
+
+
+def _history_enrich_item_with_latest_website_check(db, item):
+    from sqlalchemy import text
+
+    scan_id = item.get("scan_id") or item.get("id")
+    if scan_id is None:
+        return item
+
+    row = db.execute(
+        text(
+            """
+            SELECT *
+            FROM website_checks
+            WHERE scan_id = :scan_id
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        ),
+        {"scan_id": scan_id},
+    ).mappings().first()
+
+    if row is None:
+        return item
+
+    website_check = _history_row_to_dict(row)
+    risk_assessment = website_check.get("risk_assessment")
+
+    enriched = _history_apply_risk_assessment_to_item(item, risk_assessment)
+    enriched["website_check"] = website_check
+
+    return enriched
 
 
 def _history_build_finding(row):
@@ -1593,7 +1675,7 @@ def get_website_scan_history(
     safe_offset = max(0, offset)
 
     rows = _history_fetch_scan_rows(db=db, limit=safe_limit, offset=safe_offset)
-    items = [_history_build_item(row) for row in rows]
+    items = [_history_enrich_item_with_latest_website_check(db, _history_build_item(row)) for row in rows]
 
     return {
         "status": "success",
@@ -1633,7 +1715,7 @@ def get_my_website_scan_history(
         limit=safe_limit,
         offset=safe_offset,
     )
-    items = [_history_build_item(row) for row in rows]
+    items = [_history_enrich_item_with_latest_website_check(db, _history_build_item(row)) for row in rows]
 
     return {
         "status": "success",
