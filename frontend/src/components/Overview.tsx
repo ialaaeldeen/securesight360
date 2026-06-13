@@ -649,7 +649,7 @@ function normalizeScan(row: unknown, index: number): NormalizedScan {
           riskAssessment.risk_engine_summary,
           metadata.risk_engine_summary
         )
-      ) ?? "",
+      ) ?? buildRiskExplanation(riskAssessment),
     detectionSummary:
       stringValue(
         firstDefined(
@@ -668,6 +668,31 @@ function normalizeScan(row: unknown, index: number): NormalizedScan {
       ) ?? deductions.length,
     deductions,
   };
+}
+
+
+function buildRiskExplanation(riskAssessment: AnyRecord): string {
+  const drivers = Array.isArray(riskAssessment.key_risk_drivers)
+    ? riskAssessment.key_risk_drivers.map(String).filter(Boolean)
+    : [];
+
+  const actions = Array.isArray(riskAssessment.priority_actions)
+    ? riskAssessment.priority_actions.map(String).filter(Boolean)
+    : [];
+
+  if (drivers.length && actions.length) {
+    return `Main risk drivers: ${drivers.slice(0, 3).join("; ")}. Recommended priority: ${actions[0]}`;
+  }
+
+  if (drivers.length) {
+    return `Main risk drivers: ${drivers.slice(0, 3).join("; ")}`;
+  }
+
+  if (actions.length) {
+    return `Recommended priority: ${actions[0]}`;
+  }
+
+  return "";
 }
 
 function extractDeductions(riskAssessment: AnyRecord): ScanDeduction[] {
