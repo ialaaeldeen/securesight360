@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any
 
@@ -8,9 +9,28 @@ from fastapi.testclient import TestClient
 
 from app.api.v1.website import _build_model
 from app.main import app
+from app.core.admin_auth import require_authenticated_user
 from app.schemas.website import WebsiteScanResult
 
 client = TestClient(app)
+
+@pytest.fixture()
+def authenticated_client() -> Iterator[TestClient]:
+    fake_user = SimpleNamespace(
+        id=1,
+        email="tester@example.com",
+        role="user",
+        full_name="Test User",
+        is_active=True,
+        company_domain="example.com",
+    )
+
+    app.dependency_overrides[require_authenticated_user] = lambda: fake_user
+
+    try:
+        yield client
+    finally:
+        app.dependency_overrides.pop(require_authenticated_user, None)
 
 
 def test_website_scan_route_is_registered() -> None:
@@ -23,8 +43,8 @@ def test_website_scan_route_is_registered() -> None:
     assert "/api/v1/website/scan" in route_paths
 
 
-def test_website_scan_rejects_missing_authorization() -> None:
-    response = client.post(
+def test_website_scan_rejects_missing_authorization(authenticated_client: TestClient) -> None:
+    response = authenticated_client.post(
         "/api/v1/website/scan",
         json={
             "target_url": "https://example.com",
@@ -39,6 +59,7 @@ def test_website_scan_rejects_missing_authorization() -> None:
 
 def test_website_scan_returns_successful_response(
     monkeypatch: pytest.MonkeyPatch,
+    authenticated_client: TestClient,
 ) -> None:
     class FakeWebsiteScanner:
         def scan(self, target_url: str) -> SimpleNamespace:
@@ -65,7 +86,7 @@ def test_website_scan_returns_successful_response(
         _fake_save_completed_website_scan,
     )
 
-    response = client.post(
+    response = authenticated_client.post(
         "/api/v1/website/scan",
         json={
             "target_url": "https://example.com",
@@ -96,6 +117,7 @@ def test_website_scan_returns_successful_response(
 
 def test_website_scan_response_contains_safe_scan_metadata(
     monkeypatch: pytest.MonkeyPatch,
+    authenticated_client: TestClient,
 ) -> None:
     class FakeWebsiteScanner:
         def scan(self, target_url: str) -> SimpleNamespace:
@@ -122,7 +144,7 @@ def test_website_scan_response_contains_safe_scan_metadata(
         _fake_save_completed_website_scan,
     )
 
-    response = client.post(
+    response = authenticated_client.post(
         "/api/v1/website/scan",
         json={
             "target_url": "https://example.com",

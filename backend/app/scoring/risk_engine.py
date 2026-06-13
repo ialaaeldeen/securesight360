@@ -1361,10 +1361,10 @@ def _calibrated_deduction_for_severity(severity: Severity, requested_deduction: 
     """
     Convert technical findings into fair business scoring units.
 
-    Low:      -1  hardening / hygiene gap
-    Medium:   -2  meaningful weakness
-    High:     -3  important business risk
-    Critical: -4  confirmed dangerous exposure
+    Low:      -1   hardening / hygiene gap
+    Medium:   -2   meaningful weakness
+    High:     -3   important business risk
+    Critical: -35  confirmed dangerous exposure or core security failure
 
     The requested deduction is treated as an upper bound so calibration never
     increases the impact of an existing rule.
@@ -1374,7 +1374,7 @@ def _calibrated_deduction_for_severity(severity: Severity, requested_deduction: 
         Severity.LOW: 1,
         Severity.MEDIUM: 2,
         Severity.HIGH: 3,
-        Severity.CRITICAL: 4,
+        Severity.CRITICAL: 35,
     }
 
     return min(max(requested_deduction, 0), severity_units.get(severity, 1))
@@ -2548,7 +2548,7 @@ def _risk_level_for_score(score: int) -> RiskLevel:
         return RiskLevel.MINIMAL
     if score >= 80:
         return RiskLevel.LOW
-    if score >= 65:
+    if score >= 70:
         return RiskLevel.MODERATE
     if score >= 40:
         return RiskLevel.HIGH
@@ -2560,7 +2560,7 @@ def _grade_for_score(score: int) -> str:
         return "Excellent"
     if score >= 80:
         return "Strong"
-    if score >= 65:
+    if score >= 70:
         return "Moderate"
     if score >= 40:
         return "Weak"

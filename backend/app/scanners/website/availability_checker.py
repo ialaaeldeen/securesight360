@@ -4,8 +4,9 @@ from dataclasses import dataclass, field
 from time import monotonic
 
 import requests
+import urllib3
 from requests import Response
-from requests.exceptions import RequestException, TooManyRedirects
+from requests.exceptions import RequestException, SSLError, TooManyRedirects
 
 from app.core.config import settings
 from app.utils.validators import validate_website_url
@@ -32,6 +33,8 @@ class AvailabilityCheckResult:
     response_time_ms: int | None
     raw_headers: dict[str, str] = field(default_factory=dict)
     error: str | None = None
+    strict_tls_error: str | None = None
+    used_tls_verification_fallback: bool = False
 
 
 class WebsiteAvailabilityChecker:
@@ -82,6 +85,23 @@ class WebsiteAvailabilityChecker:
                 error="Too many redirects while checking website availability.",
             )
 
+        except SSLError as error:
+            if normalized_url.lower().startswith("https://"):
+                return self._check_https_reachability_without_tls_verification(
+                    normalized_url=normalized_url,
+                    start_time=start_time,
+                    strict_tls_error=error,
+                )
+
+            return AvailabilityCheckResult(
+                original_url=normalized_url,
+                final_url=None,
+                is_available=False,
+                http_status_code=None,
+                response_time_ms=self._calculate_response_time_ms(start_time),
+                error=f"Website availability check failed: {error}",
+            )
+
         except RequestException as error:
             return AvailabilityCheckResult(
                 original_url=normalized_url,
@@ -90,6 +110,71 @@ class WebsiteAvailabilityChecker:
                 http_status_code=None,
                 response_time_ms=self._calculate_response_time_ms(start_time),
                 error=f"Website availability check failed: {error}",
+            )
+
+    def _check_https_reachability_without_tls_verification(
+        self,
+        normalized_url: str,
+        start_time: float,
+        strict_tls_error: SSLError,
+    ) -> AvailabilityCheckResult:
+        """
+        Confirm reachability when strict TLS trust verification fails.
+
+        This fallback is used only to separate network reachability from TLS
+        certificate trust. TLS remains evaluated by the dedicated SSL checker.
+        """
+
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+        try:
+            with requests.get(
+                normalized_url,
+                headers=self.request_headers,
+                timeout=self.timeout_seconds,
+                allow_redirects=True,
+                stream=True,
+                verify=False,
+            ) as response:
+                return self._build_result(
+                    original_url=normalized_url,
+                    response=response,
+                    response_time_ms=self._calculate_response_time_ms(start_time),
+                    strict_tls_error=(
+                        "Strict TLS verification failed during availability check: "
+                        f"{strict_tls_error}"
+                    ),
+                    used_tls_verification_fallback=True,
+                )
+
+        except TooManyRedirects:
+            return AvailabilityCheckResult(
+                original_url=normalized_url,
+                final_url=None,
+                is_available=False,
+                http_status_code=None,
+                response_time_ms=self._calculate_response_time_ms(start_time),
+                error=(
+                    "Too many redirects while checking website availability after "
+                    "strict TLS verification failed."
+                ),
+                strict_tls_error=str(strict_tls_error),
+                used_tls_verification_fallback=True,
+            )
+
+        except RequestException as fallback_error:
+            return AvailabilityCheckResult(
+                original_url=normalized_url,
+                final_url=None,
+                is_available=False,
+                http_status_code=None,
+                response_time_ms=self._calculate_response_time_ms(start_time),
+                error=(
+                    "Website availability check failed after TLS reachability "
+                    f"fallback: {fallback_error}"
+                ),
+                strict_tls_error=str(strict_tls_error),
+                used_tls_verification_fallback=True,
             )
 
     @staticmethod
@@ -113,6 +198,8 @@ class WebsiteAvailabilityChecker:
         original_url: str,
         response: Response,
         response_time_ms: int,
+        strict_tls_error: str | None = None,
+        used_tls_verification_fallback: bool = False,
     ) -> AvailabilityCheckResult:
         """
         Convert a successful HTTP response into a structured result.
