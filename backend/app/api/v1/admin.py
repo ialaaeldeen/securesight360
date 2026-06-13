@@ -638,3 +638,596 @@ def list_admin_scans(
         )
 
     return scans
+
+
+def _safe_group_counts(
+    db: Session,
+    table_name: str,
+    column_name: str,
+    where_clause: str = "",
+    params: dict[str, Any] | None = None,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    if not _table_exists(db, table_name):
+        return []
+
+    columns = _table_columns(db, table_name)
+
+    if column_name not in columns:
+        return []
+
+    query = f"""
+        SELECT
+            COALESCE(NULLIF(TRIM({column_name}), ''), 'unknown') AS label,
+            COUNT(*) AS total
+        FROM {table_name}
+        {where_clause}
+        GROUP BY COALESCE(NULLIF(TRIM({column_name}), ''), 'unknown')
+        ORDER BY total DESC
+        LIMIT :limit
+    """
+
+    safe_params = dict(params or {})
+    safe_params["limit"] = limit
+
+    rows = db.execute(text(query), safe_params).mappings().all()
+
+    return [{"label": str(row["label"]), "total": int(row["total"] or 0)} for row in rows]
+
+
+def _safe_average_score(db: Session) -> int | None:
+    if not _table_exists(db, "scans"):
+        return None
+
+    columns = _table_columns(db, "scans")
+    score_column = None
+
+    for candidate in ("security_score", "score", "risk_score", "overall_score"):
+        if candidate in columns:
+            score_column = candidate
+            break
+
+    if not score_column:
+        return None
+
+    row = db.execute(
+        text(
+            f"""
+            SELECT AVG({score_column}) AS average_score
+            FROM scans
+            WHERE {score_column} IS NOT NULL
+            """
+        )
+    ).mappings().first()
+
+    if row is None or row["average_score"] is None:
+        return None
+
+    return int(round(float(row["average_score"])))
+
+
+def _safe_recent_scans(db: Session, limit: int = 8) -> list[dict[str, Any]]:
+    if not _table_exists(db, "scans"):
+        return []
+
+    columns = _table_columns(db, "scans")
+    target_expr = _scan_target_expression(columns)
+    score_expr = _scan_score_expression(columns)
+    risk_expr = _scan_risk_expression(columns)
+    status_expr = _scan_status_expression(columns)
+    created_expr = _scan_created_expression(columns)
+
+    grade_expr = "grade" if "grade" in columns else "NULL"
+    user_email_expr = "user_email" if "user_email" in columns else "NULL"
+
+    order_column = _scan_datetime_column(db)
+
+    order_clause = f"{order_column} DESC" if order_column else "id DESC"
+
+    rows = db.execute(
+        text(
+            f"""
+            SELECT
+                id,
+                {target_expr} AS target,
+                {score_expr} AS security_score,
+                {grade_expr} AS security_rating,
+                {risk_expr} AS risk_level,
+                {status_expr} AS status,
+                {user_email_expr} AS user_email,
+                {created_expr} AS created_at
+            FROM scans
+            ORDER BY {order_clause}
+            LIMIT :limit
+            """
+        ),
+        {"limit": limit},
+    ).mappings().all()
+
+    return [
+        {
+            "id": row["id"],
+            "target": row["target"],
+            "security_score": row["security_score"],
+            "security_rating": row["security_rating"],
+            "risk_level": row["risk_level"],
+            "status": row["status"],
+            "user_email": row["user_email"],
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]
+
+
+def _safe_top_users_by_scans(db: Session, limit: int = 8) -> list[dict[str, Any]]:
+    if not _table_exists(db, "scans"):
+        return []
+
+    columns = _table_columns(db, "scans")
+
+    if "user_email" in columns:
+        user_expr = "COALESCE(NULLIF(TRIM(user_email), ''), 'unknown')"
+    elif "user_id" in columns:
+        user_expr = "CAST(user_id AS TEXT)"
+    else:
+        return []
+
+    rows = db.execute(
+        text(
+            f"""
+            SELECT
+                {user_expr} AS user_label,
+                COUNT(*) AS total_scans
+            FROM scans
+            GROUP BY {user_expr}
+            ORDER BY total_scans DESC
+            LIMIT :limit
+            """
+        ),
+        {"limit": limit},
+    ).mappings().all()
+
+    return [
+        {
+            "user": str(row["user_label"]),
+            "total_scans": int(row["total_scans"] or 0),
+        }
+        for row in rows
+    ]
+
+
+def _safe_riskiest_targets(db: Session, limit: int = 8) -> list[dict[str, Any]]:
+    if not _table_exists(db, "scans"):
+        return []
+
+    columns = _table_columns(db, "scans")
+    target_expr = _scan_target_expression(columns)
+    score_expr = _scan_score_expression(columns)
+    risk_expr = _scan_risk_expression(columns)
+    created_expr = _scan_created_expression(columns)
+
+    if score_expr == "NULL":
+        return []
+
+    rows = db.execute(
+        text(
+            f"""
+            SELECT
+                {target_expr} AS target,
+                MIN({score_expr}) AS lowest_score,
+                {risk_expr} AS risk_level,
+                MAX({created_expr}) AS last_seen
+            FROM scans
+            WHERE {score_expr} IS NOT NULL
+            GROUP BY {target_expr}
+            ORDER BY lowest_score ASC
+            LIMIT :limit
+            """
+        ),
+        {"limit": limit},
+    ).mappings().all()
+
+    return [
+        {
+            "target": row["target"],
+            "lowest_score": row["lowest_score"],
+            "risk_level": row["risk_level"],
+            "last_seen": row["last_seen"],
+        }
+        for row in rows
+    ]
+
+
+@router.get(
+    "/dashboard/analysis",
+    response_model=dict[str, Any],
+    status_code=status.HTTP_200_OK,
+    summary="Get professional admin security analytics",
+)
+def get_admin_dashboard_analysis(
+    db: Session = Depends(get_db),
+    _: AuthenticatedUser = Depends(require_admin_user),
+) -> dict[str, Any]:
+    """
+    Return a professional admin analytics dashboard using raw SQL only.
+
+    Important:
+    - This project currently uses a raw SQL users table, not a User ORM model.
+    - Older scan rows may not have grade/risk_level columns.
+    - Security Rating and Risk Level are therefore derived from security_score when needed.
+    """
+    ensure_auth_tables(db)
+
+    def _rating_from_score(score: Any) -> str:
+        try:
+            value = int(score)
+        except (TypeError, ValueError):
+            return "Unrated"
+
+        if value >= 85:
+            return "Excellent"
+        if value >= 70:
+            return "Strong"
+        if value >= 50:
+            return "Moderate"
+        if value >= 30:
+            return "Weak"
+        return "Critical"
+
+    def _risk_from_score(score: Any) -> str:
+        try:
+            value = int(score)
+        except (TypeError, ValueError):
+            return "Unknown"
+
+        if value >= 70:
+            return "Low"
+        if value >= 50:
+            return "Medium"
+        if value >= 30:
+            return "High"
+        return "Critical"
+
+    def _increase(counter: dict[str, int], key: str) -> None:
+        normalized = str(key or "Unknown").strip() or "Unknown"
+        counter[normalized] = counter.get(normalized, 0) + 1
+
+    def _scan_time(row: dict[str, Any]) -> Any:
+        return (
+            row.get("created_at")
+            or row.get("completed_at")
+            or row.get("started_at")
+            or row.get("updated_at")
+        )
+
+    total_users = _safe_count(db, "users")
+    active_users = _safe_count(db, "users", "WHERE is_active = 1")
+    inactive_users = _safe_count(db, "users", "WHERE is_active = 0")
+    total_admins = _safe_count(db, "users", "WHERE LOWER(role) = 'admin'")
+    active_admins = _safe_count(
+        db,
+        "users",
+        "WHERE LOWER(role) = 'admin' AND is_active = 1",
+    )
+
+    scan_columns = _table_columns(db, "scans")
+    total_scans = _safe_count(db, "scans")
+
+    completed_scans = 0
+    failed_scans = 0
+    average_security_score: float | None = None
+    high_critical_risk_scan_count = 0
+
+    rating_distribution: dict[str, int] = {}
+    risk_level_distribution: dict[str, int] = {}
+    scan_status_distribution: dict[str, int] = {}
+
+    recent_scans: list[dict[str, Any]] = []
+    riskiest_targets: list[dict[str, Any]] = []
+    most_active_users: list[dict[str, Any]] = []
+
+    if _table_exists(db, "scans"):
+        scan_rows = [
+            dict(row)
+            for row in db.execute(
+                text(
+                    """
+                    SELECT
+                        id,
+                        target,
+                        status,
+                        security_score,
+                        started_at,
+                        completed_at,
+                        created_at,
+                        updated_at,
+                        user_id,
+                        user_email,
+                        user_full_name
+                    FROM scans
+                    ORDER BY COALESCE(created_at, completed_at, started_at, updated_at) DESC,
+                             id DESC
+                    """
+                )
+            ).mappings().all()
+        ]
+
+        scores: list[int] = []
+
+        for row in scan_rows:
+            status_value = str(row.get("status") or "Unknown").strip() or "Unknown"
+            status_lower = status_value.lower()
+
+            if status_lower == "completed":
+                completed_scans += 1
+            elif status_lower == "failed":
+                failed_scans += 1
+
+            _increase(scan_status_distribution, status_value)
+
+            score = row.get("security_score")
+            rating = _rating_from_score(score)
+            risk_level = _risk_from_score(score)
+
+            if rating != "Unrated":
+                _increase(rating_distribution, rating)
+
+            if risk_level != "Unknown":
+                _increase(risk_level_distribution, risk_level)
+
+            if risk_level in {"High", "Critical"}:
+                high_critical_risk_scan_count += 1
+
+            try:
+                scores.append(int(score))
+            except (TypeError, ValueError):
+                pass
+
+        if scores:
+            average_security_score = round(sum(scores) / len(scores), 1)
+
+        for row in scan_rows[:10]:
+            score = row.get("security_score")
+            recent_scans.append(
+                {
+                    "id": row.get("id"),
+                    "target": row.get("target"),
+                    "target_url": row.get("target"),
+                    "status": row.get("status"),
+                    "security_score": score,
+                    "security_rating": _rating_from_score(score),
+                    "grade": _rating_from_score(score),
+                    "risk_level": _risk_from_score(score),
+                    "created_at": _scan_time(row),
+                    "started_at": row.get("started_at"),
+                    "completed_at": row.get("completed_at"),
+                    "user_id": row.get("user_id"),
+                    "user_email": row.get("user_email"),
+                    "user_full_name": row.get("user_full_name"),
+                }
+            )
+
+        scored_rows = [
+            row
+            for row in scan_rows
+            if row.get("security_score") is not None
+        ]
+
+        lowest_by_target: dict[str, dict[str, Any]] = {}
+
+        for row in scored_rows:
+            target = str(row.get("target") or "Unknown target")
+            current = lowest_by_target.get(target)
+
+            if current is None:
+                lowest_by_target[target] = row
+                continue
+
+            try:
+                row_score = int(row.get("security_score"))
+                current_score = int(current.get("security_score"))
+            except (TypeError, ValueError):
+                continue
+
+            if row_score < current_score:
+                lowest_by_target[target] = row
+
+        for row in sorted(
+            lowest_by_target.values(),
+            key=lambda item: int(item.get("security_score") or 999),
+        )[:8]:
+            score = row.get("security_score")
+            riskiest_targets.append(
+                {
+                    "id": row.get("id"),
+                    "target": row.get("target"),
+                    "target_url": row.get("target"),
+                    "security_score": score,
+                    "lowest_score": score,
+                    "average_security_score": score,
+                    "security_rating": _rating_from_score(score),
+                    "grade": _rating_from_score(score),
+                    "risk_level": _risk_from_score(score),
+                    "last_seen": _scan_time(row),
+                    "user_id": row.get("user_id"),
+                    "user_email": row.get("user_email"),
+                    "user_full_name": row.get("user_full_name"),
+                }
+            )
+
+        user_activity: dict[str, dict[str, Any]] = {}
+
+        for row in scan_rows:
+            user_key = str(
+                row.get("user_id")
+                or row.get("user_email")
+                or "unknown"
+            )
+
+            if user_key not in user_activity:
+                user_activity[user_key] = {
+                    "id": row.get("user_id"),
+                    "email": row.get("user_email"),
+                    "full_name": row.get("user_full_name"),
+                    "scan_count": 0,
+                    "total_scans": 0,
+                }
+
+            user_activity[user_key]["scan_count"] += 1
+            user_activity[user_key]["total_scans"] += 1
+
+        most_active_users = sorted(
+            user_activity.values(),
+            key=lambda item: int(item.get("scan_count") or 0),
+            reverse=True,
+        )[:8]
+
+    return {
+        "total_users": total_users,
+        "active_users": active_users,
+        "inactive_users": inactive_users,
+        "total_admins": total_admins,
+        "active_admins": active_admins,
+        "total_scans": total_scans,
+        "completed_scans": completed_scans,
+        "failed_scans": failed_scans,
+        "average_security_score": average_security_score,
+        "high_critical_risk_scan_count": high_critical_risk_scan_count,
+        "high_risk_scans": high_critical_risk_scan_count,
+        "security_rating_distribution": rating_distribution,
+        "rating_distribution": rating_distribution,
+        "risk_level_distribution": risk_level_distribution,
+        "scan_status_distribution": scan_status_distribution,
+        "status_distribution": scan_status_distribution,
+        "recent_scans": recent_scans,
+        "riskiest_targets": riskiest_targets,
+        "most_active_users": most_active_users,
+        "top_users_by_scans": most_active_users,
+        "summary": {
+            "total_users": total_users,
+            "active_users": active_users,
+            "inactive_users": inactive_users,
+            "total_admins": total_admins,
+            "active_admins": active_admins,
+            "total_scans": total_scans,
+            "completed_scans": completed_scans,
+            "failed_scans": failed_scans,
+            "average_security_score": average_security_score,
+            "high_risk_scans": high_critical_risk_scan_count,
+            "high_critical_risk_scan_count": high_critical_risk_scan_count,
+        },
+        "distributions": {
+            "security_ratings": rating_distribution,
+            "risk_levels": risk_level_distribution,
+            "scan_status": scan_status_distribution,
+        },
+    }
+
+def _scan_count_for_user(db: Session, user_id: int, email: str) -> int:
+    if not _table_exists(db, "scans"):
+        return 0
+
+    columns = _table_columns(db, "scans")
+    clauses: list[str] = []
+    params: dict[str, Any] = {"user_id": user_id, "email": email}
+
+    if "user_id" in columns:
+        clauses.append("user_id = :user_id")
+
+    if "user_email" in columns:
+        clauses.append("LOWER(user_email) = LOWER(:email)")
+
+    if not clauses:
+        return 0
+
+    row = db.execute(
+        text(f"SELECT COUNT(*) AS total FROM scans WHERE {' OR '.join(clauses)}"),
+        params,
+    ).mappings().first()
+
+    return int(row["total"] or 0) if row else 0
+
+
+@router.delete(
+    "/users/{user_id}",
+    response_model=dict[str, Any],
+    status_code=status.HTTP_200_OK,
+    summary="Safely delete a user account",
+)
+def delete_admin_user(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_admin: AuthenticatedUser = Depends(require_admin_user),
+) -> dict[str, Any]:
+    ensure_auth_tables(db)
+
+    target_user = _get_user_row_by_id(db, user_id)
+
+    if int(target_user["id"]) == int(current_admin.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Admins cannot delete their own account.",
+        )
+
+    target_role = str(target_user["role"] or "").lower()
+    target_active = bool(target_user["is_active"])
+
+    if target_role == "admin" and target_active and _count_active_admins(db) <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete the last active admin account.",
+        )
+
+    scan_count = _scan_count_for_user(
+        db,
+        user_id=int(target_user["id"]),
+        email=str(target_user["email"]),
+    )
+
+    deleted_email = f"deleted-user-{user_id}@deleted.securesight360.local"
+
+    db.execute(
+        text(
+            """
+            UPDATE users
+            SET
+                email = :deleted_email,
+                full_name = 'Deleted User',
+                role = 'user',
+                is_active = 0,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :user_id
+            """
+        ),
+        {
+            "deleted_email": deleted_email,
+            "user_id": user_id,
+        },
+    )
+    db.commit()
+
+    try:
+        write_audit_log(
+            db=db,
+            event_type="admin_user_deleted",
+            actor_email=current_admin.email,
+            target_email=str(target_user["email"]),
+            details=json.dumps(
+                {
+                    "target_user_id": user_id,
+                    "retained_scan_records": scan_count,
+                    "method": "soft_delete_anonymize_user_account",
+                    "client_host": request.client.host if request.client else None,
+                }
+            ),
+        )
+    except Exception:
+        # Audit logging must never break admin account safety operations.
+        pass
+
+    return {
+        "message": "User account deleted safely. Historical scan records were retained for audit integrity.",
+        "deleted_user_id": user_id,
+        "retained_scan_records": scan_count,
+    }
