@@ -1223,7 +1223,7 @@ class RiskEngine:
                     title="Sensitive network service exposed",
                     category="Exposure Management",
                     severity=highest,
-                    deduction=_calibrated_deduction_for_severity(severity, deduction),
+                    deduction=deduction,
                     evidence=", ".join(
                         f"{finding.port}/{finding.service}"
                         for finding in risky_findings
