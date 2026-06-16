@@ -280,7 +280,7 @@ DEFAULT_MAPPINGS: dict[str, dict[str, list[str]]] = {
 
 
 class RiskEngine:
-    """Explainable rule-based risk engine for CyberShield360 website assessments."""
+    """Explainable rule-based risk engine for SecureSight360 website assessments."""
 
     def __init__(self, base_score: int = DEFAULT_BASE_SCORE) -> None:
         if not MIN_SCORE <= base_score <= MAX_SCORE:
@@ -699,37 +699,84 @@ class RiskEngine:
                 )
             )
 
-            csp_value = _clean_text(csp.value).lower()
-            weak_csp_reasons: list[str] = []
+            csp_value_raw = _clean_text(csp.value)
+            csp_value = csp_value_raw.lower()
 
-            if "unsafe-inline" in csp_value:
-                weak_csp_reasons.append("contains unsafe-inline")
-            if "default-src *" in csp_value or "script-src *" in csp_value:
-                weak_csp_reasons.append("uses wildcard source")
-            if "object-src" not in csp_value:
-                weak_csp_reasons.append("object-src directive not observed")
+            csp_directives: dict[str, list[str]] = {}
 
-            if weak_csp_reasons or csp.is_weak:
+            for directive in csp_value.split(";"):
+                parts = directive.strip().split()
+
+                if not parts:
+                    continue
+
+                directive_name = parts[0].strip().lower()
+                directive_values = [part.strip().lower() for part in parts[1:]]
+
+                if directive_name:
+                    csp_directives[directive_name] = directive_values
+
+            default_sources = csp_directives.get("default-src", [])
+            script_sources = csp_directives.get("script-src", default_sources)
+            style_sources = csp_directives.get("style-src", default_sources)
+
+            has_restrictive_default = any(
+                source in default_sources
+                for source in {"'none'", "'self'"}
+            )
+
+            object_src_declared = "object-src" in csp_directives
+            object_effectively_restricted = object_src_declared or "'none'" in default_sources
+
+            script_allows_unsafe_inline = "'unsafe-inline'" in script_sources
+            style_allows_unsafe_inline = "'unsafe-inline'" in style_sources
+
+            wildcard_sources = {"*", "http:", "https:", "data:"}
+            script_uses_broad_wildcard = any(source in wildcard_sources for source in script_sources)
+            default_uses_broad_wildcard = any(source in wildcard_sources for source in default_sources)
+
+            medium_csp_reasons: list[str] = []
+            advisory_csp_reasons: list[str] = []
+
+            if script_allows_unsafe_inline:
+                medium_csp_reasons.append("script-src allows unsafe-inline")
+            elif style_allows_unsafe_inline:
+                advisory_csp_reasons.append("style-src allows unsafe-inline")
+
+            if script_uses_broad_wildcard or default_uses_broad_wildcard:
+                medium_csp_reasons.append("default-src or script-src allows broad wildcard sources")
+
+            if not object_effectively_restricted:
+                if has_restrictive_default:
+                    advisory_csp_reasons.append("object-src directive not observed but default-src is restrictive")
+                else:
+                    medium_csp_reasons.append("object-src directive not observed and default-src is not restrictive")
+
+            if csp.is_weak and not medium_csp_reasons and not advisory_csp_reasons:
+                advisory_csp_reasons.append(_header_evidence(csp))
+
+            if medium_csp_reasons or advisory_csp_reasons:
+                csp_severity = Severity.MEDIUM if medium_csp_reasons else Severity.LOW
+                csp_deduction = 8 if medium_csp_reasons else 2
+                csp_reasons = medium_csp_reasons or advisory_csp_reasons
+
                 deductions.append(
                     _deduction(
                         rule_id="HDR-002",
                         title="Content-Security-Policy appears weak",
                         category="HTTP Security Headers",
-                        severity=Severity.MEDIUM,
-                        deduction=8,
-                        evidence=(
-                            "; ".join(weak_csp_reasons)
-                            if weak_csp_reasons
-                            else _header_evidence(csp)
-                        ),
+                        severity=csp_severity,
+                        deduction=csp_deduction,
+                        evidence="; ".join(csp_reasons),
                         business_impact=(
-                            "A weak CSP may provide limited protection against injected "
-                            "scripts, malicious framing, or unsafe third-party content."
+                            "A weak or partially hardened CSP may provide limited browser-level "
+                            "protection against injected scripts, malicious framing, or unsafe "
+                            "third-party content. The impact depends on which directives are weak."
                         ),
                         recommendation=(
-                            "Tighten CSP directives, remove unsafe-inline where possible, "
-                            "avoid broad wildcards, and explicitly set object-src and "
-                            "frame-ancestors."
+                            "Prioritize tightening script-src and default-src first. Avoid broad "
+                            "wildcards, avoid unsafe-inline for scripts, define object-src explicitly "
+                            "where possible, and keep frame-ancestors aligned with the intended framing policy."
                         ),
                         detection_method="HTTP security header value inspection.",
                         mappings=DEFAULT_MAPPINGS["security_misconfiguration"],
@@ -2496,7 +2543,7 @@ def _build_executive_summary(
 
     if not deductions:
         return (
-            f"CyberShield360 assessed {target_text} and calculated a security score of "
+            f"SecureSight360 assessed {target_text} and calculated a security score of "
             f"{score}/100 ({grade}) with {risk_level.value} risk. No material "
             "configuration weaknesses were identified from the available automated evidence."
         )
@@ -2507,7 +2554,7 @@ def _build_executive_summary(
     )
 
     return (
-        f"CyberShield360 assessed {target_text} and calculated a security score of "
+        f"SecureSight360 assessed {target_text} and calculated a security score of "
         f"{score}/100 ({grade}) with {risk_level.value} risk. The assessment identified "
         f"{len(deductions)} security finding(s), including {critical_high_count} critical/high "
         f"priority item(s). The main risk driver is: {highest.title}."

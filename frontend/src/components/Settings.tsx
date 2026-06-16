@@ -220,12 +220,7 @@ export function Settings({ onLogout }: Props) {
 
           {tab === "data" && (
             <>
-              <Card title="Export workspace" desc="Download all your scans, reports, and settings.">
-                <button className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary px-4 py-2 text-sm hover:bg-secondary/70">
-                  <Download className="h-4 w-4" /> Export as JSON
-                </button>
-              </Card>
-              <Card title="Danger zone" desc="Irreversible workspace actions." danger>
+       <Card title="Danger zone" desc="Irreversible workspace actions." danger>
                 <button className="inline-flex items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 text-danger px-4 py-2 text-sm hover:bg-danger/20">
                   <Trash2 className="h-4 w-4" /> Delete all scan history
                 </button>

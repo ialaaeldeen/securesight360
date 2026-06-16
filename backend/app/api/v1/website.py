@@ -29,6 +29,48 @@ from app.services.website_scan_service import (
 
 router = APIRouter(prefix="/website", tags=["Website Scanner"])
 
+
+def _basic_website_assessment_scope() -> dict[str, Any]:
+    """
+    Public scope metadata for the current SecureSight360 website scanner.
+
+    This keeps the product honest: the current scanner is a safe external
+    posture assessment, not a full penetration test or full vulnerability scan.
+    """
+    return {
+        "profile": "basic",
+        "profile_label": "Basic",
+        "assessment_type": "Basic External Website Security Posture Assessment",
+        "scope_level": "Safe non-invasive external assessment",
+        "coverage": [
+            "Website availability and HTTP response status",
+            "HTTPS usage and TLS certificate validity",
+            "Core browser security headers",
+            "Content-Security-Policy quality calibration",
+            "DNS and email-security records including SPF, DMARC, and CAA",
+            "Basic technology evidence from response headers",
+            "Explainable risk scoring and PDF reporting",
+        ],
+        "limitations": [
+            "No exploitation or intrusive vulnerability testing",
+            "No authenticated application testing",
+            "No deep crawling of all pages",
+            "No port or service scanning",
+            "No subdomain enumeration",
+            "No API endpoint security testing",
+            "No JavaScript dependency or CVE matching",
+            "Not a full penetration test",
+            "Not a full vulnerability assessment",
+        ],
+        "authorization_required": True,
+        "safe_scan_notice": (
+            "This assessment uses safe, non-invasive checks only and must be "
+            "run only against assets the user owns or is explicitly authorized to test."
+        ),
+    }
+
+
+
 def _is_admin_scan_user(user: AuthenticatedUser) -> bool:
     role = str(getattr(user, "role", "") or "").strip().lower()
     return role in {"admin", "super_admin", "owner"}
@@ -270,9 +312,9 @@ def scan_website(
                 "source": "website_scanner_mvp",
                 "authorization_confirmed": bool(payload.authorization_confirmed),
                 "safe_scan_profile": True,
-                "safe_scan_notice": (
-                    "This scan uses safe, non-invasive website checks only."
-                ),
+                "assessment_type": _basic_website_assessment_scope()["assessment_type"],
+                "assessment_scope": _basic_website_assessment_scope(),
+                "safe_scan_notice": _basic_website_assessment_scope()["safe_scan_notice"],
                 "scanner_version": _string_or_none(
                     _get_attr(scanner_result, "scanner_version", "version")
                 ),
@@ -460,6 +502,8 @@ def _build_scan_result(
             {
                 "source": "website_scanner_mvp",
                 "safe_scan_profile": True,
+                "assessment_type": _basic_website_assessment_scope()["assessment_type"],
+                "assessment_scope": _basic_website_assessment_scope(),
                 "scanner_status": _string_or_none(
                     _get_attr(scanner_result, "status")
                 ),
@@ -576,6 +620,8 @@ def _ensure_website_scan_result(
                 "source": "website_scanner_mvp",
                 "repaired_response_payload": True,
                 "safe_scan_profile": True,
+                "assessment_type": _basic_website_assessment_scope()["assessment_type"],
+                "assessment_scope": _basic_website_assessment_scope(),
             }
         ),
     }
@@ -922,6 +968,8 @@ def _prepare_website_scan_result_payload(
             "source": "website_scanner_mvp",
             "payload_repaired_before_validation": True,
             "safe_scan_profile": True,
+            "assessment_type": _basic_website_assessment_scope()["assessment_type"],
+            "assessment_scope": _basic_website_assessment_scope(),
         }
     )
 
@@ -1382,7 +1430,7 @@ def _history_score_to_risk_level(score):
     if numeric_score >= 80:
         return "low"
 
-    if numeric_score >= 65:
+    if numeric_score >= 70:
         return "moderate"
 
     if numeric_score >= 40:
@@ -1403,7 +1451,7 @@ def _history_score_to_grade(score):
     if numeric_score >= 80:
         return "Strong"
 
-    if numeric_score >= 65:
+    if numeric_score >= 70:
         return "Moderate"
 
     if numeric_score >= 40:
@@ -1454,6 +1502,9 @@ def _history_build_item(row, findings_count=None):
         or "Unknown target",
         "scan_type": row_data.get("scan_type", "website_basic"),
         "target_type": row_data.get("target_type", "website"),
+        "scan_profile": "basic",
+        "assessment_type": _basic_website_assessment_scope()["assessment_type"],
+        "assessment_scope": _basic_website_assessment_scope(),
         "status": _history_as_text(row_data.get("status"), "unknown").lower(),
         "security_score": security_score,
         "risk_level": str(risk_level).lower(),
@@ -1487,6 +1538,9 @@ def _history_apply_risk_assessment_to_item(item, risk_assessment):
     ).lower()
     enriched["grade"] = str(risk_assessment.get("grade") or enriched.get("grade") or "Not Rated")
     enriched["security_rating"] = enriched["grade"]
+    enriched["scan_profile"] = "basic"
+    enriched["assessment_type"] = _basic_website_assessment_scope()["assessment_type"]
+    enriched["assessment_scope"] = _basic_website_assessment_scope()
     enriched["executive_summary"] = risk_assessment.get("executive_summary")
     enriched["detection_summary"] = risk_assessment.get("detection_summary")
     enriched["priority_actions"] = risk_assessment.get("priority_actions")
@@ -1780,11 +1834,16 @@ def get_my_website_scan_history_detail(
     website_checks = [_history_row_to_dict(row) for row in website_check_rows]
     findings = [_history_build_finding(row) for row in finding_rows]
 
+    latest_website_check = website_checks[0] if website_checks else None
+    mapped_website_check = _report_build_website_check_payload(latest_website_check or {})
+
     return {
         "status": "success",
         "scan": _history_build_item(scan_row, findings_count=len(findings)),
         "raw_scan": _history_row_to_dict(scan_row),
-        "website_check": website_checks[0] if website_checks else None,
+        "website_check": mapped_website_check,
+        "website_check_payload": mapped_website_check,
+        "raw_website_check": latest_website_check,
         "website_checks": website_checks,
         "findings": findings,
         "findings_count": len(findings),
@@ -1841,15 +1900,417 @@ def get_website_scan_history_detail(
     website_checks = [_history_row_to_dict(row) for row in website_check_rows]
     findings = [_history_build_finding(row) for row in finding_rows]
 
+    latest_website_check = website_checks[0] if website_checks else None
+    mapped_website_check = _report_build_website_check_payload(latest_website_check or {})
+
     return {
         "status": "success",
         "scan": _history_build_item(scan_row, findings_count=len(findings)),
         "raw_scan": _history_row_to_dict(scan_row),
-        "website_check": website_checks[0] if website_checks else None,
+        "website_check": mapped_website_check,
+        "website_check_payload": mapped_website_check,
+        "raw_website_check": latest_website_check,
         "website_checks": website_checks,
         "findings": findings,
         "findings_count": len(findings),
     }
+
+
+
+
+# === SecureSight360 Website PDF Report API START ===
+
+
+def _report_bool_from_value(value):
+    if value is None:
+        return None
+
+    if isinstance(value, bool):
+        return value
+
+    text_value = str(value).strip().lower()
+
+    if text_value in {"1", "true", "yes", "present", "enabled", "valid"}:
+        return True
+
+    if text_value in {"0", "false", "no", "missing", "disabled", "invalid"}:
+        return False
+
+    return value
+
+
+def _report_days_until_expiry(value):
+    if value in (None, ""):
+        return None
+
+    from datetime import datetime, timezone
+
+    if isinstance(value, datetime):
+        expiry = value
+    else:
+        text_value = str(value).strip()
+
+        if not text_value:
+            return None
+
+        expiry = None
+
+        for candidate in (
+            text_value,
+            text_value.replace("Z", "+00:00"),
+            text_value.split(".")[0],
+        ):
+            try:
+                expiry = datetime.fromisoformat(candidate)
+                break
+            except ValueError:
+                continue
+
+        if expiry is None:
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                try:
+                    expiry = datetime.strptime(text_value.split(".")[0], fmt)
+                    break
+                except ValueError:
+                    continue
+
+        if expiry is None:
+            return None
+
+    now = datetime.now(expiry.tzinfo) if expiry.tzinfo else datetime.utcnow()
+
+    return max(0, int((expiry - now).total_seconds() // 86400))
+
+
+def _report_header_value(headers, *names):
+    if not isinstance(headers, dict):
+        return None
+
+    lower_map = {str(key).lower(): value for key, value in headers.items()}
+
+    for name in names:
+        value = lower_map.get(str(name).lower())
+
+        if value not in (None, "", [], {}):
+            return value
+
+    return None
+
+
+def _report_derive_technologies_from_headers(raw_headers):
+    if not isinstance(raw_headers, dict):
+        return {}
+
+    technologies = {
+        "server": _report_header_value(raw_headers, "Server"),
+        "x_powered_by": _report_header_value(raw_headers, "X-Powered-By"),
+        "content_type": _report_header_value(raw_headers, "Content-Type"),
+    }
+
+    return {
+        key: value
+        for key, value in technologies.items()
+        if value not in (None, "", [], {})
+    }
+
+
+def _report_build_website_check_payload(website_check):
+    """
+    Convert the flat website_checks database row into one standardized evidence
+    structure used by PDF reports, Reports View Details, and History View Details.
+
+    This does not invent scanner results. It only maps stored database evidence.
+    Missing evidence remains empty or None.
+    """
+    row = _history_clean_payload(website_check or {})
+
+    if not isinstance(row, dict):
+        row = {}
+
+    security_headers = row.get("security_headers")
+    if not isinstance(security_headers, dict):
+        security_headers = {}
+
+    dns_records = row.get("dns_records")
+    if not isinstance(dns_records, dict):
+        dns_records = {}
+
+    raw_headers = row.get("raw_headers")
+    if not isinstance(raw_headers, dict):
+        raw_headers = {}
+
+    technologies = row.get("technologies_detected")
+    if not isinstance(technologies, dict):
+        technologies = {}
+
+    if not technologies:
+        technologies = _report_derive_technologies_from_headers(raw_headers)
+
+    mx_records = dns_records.get("MX")
+    caa_records = dns_records.get("CAA")
+    a_records = dns_records.get("A")
+    aaaa_records = dns_records.get("AAAA")
+    ns_records = dns_records.get("NS")
+    txt_records = dns_records.get("TXT")
+    dmarc_records = dns_records.get("DMARC")
+
+    mx_present = bool(mx_records) if mx_records is not None else None
+    caa_present = bool(caa_records) if caa_records is not None else None
+
+    ssl_expiry_date = row.get("ssl_expiry_date")
+    ssl_payload = {
+        "https_enabled": _report_bool_from_value(row.get("https_enabled")),
+        "certificate_valid": _report_bool_from_value(row.get("ssl_valid")),
+        "issuer": row.get("ssl_issuer"),
+        "subject": row.get("ssl_subject"),
+        "expiry_date": ssl_expiry_date,
+        "days_until_expiry": _report_days_until_expiry(ssl_expiry_date),
+        "protocol": row.get("ssl_protocol"),
+    }
+
+    dns_payload = {
+        "records": dns_records,
+        "a_records": a_records,
+        "aaaa_records": aaaa_records,
+        "mx_records": mx_records,
+        "ns_records": ns_records,
+        "txt_records": txt_records,
+        "dmarc_records": dmarc_records,
+        "caa_records": caa_records,
+        "spf_present": _report_bool_from_value(row.get("spf_found")),
+        "dmarc_present": _report_bool_from_value(row.get("dmarc_found")),
+        "mx_present": mx_present,
+        "caa_present": caa_present,
+        "dkim_guidance": row.get("dkim_guidance"),
+    }
+
+    availability_payload = {
+        "is_available": _report_bool_from_value(row.get("is_available")),
+        "status_code": row.get("http_status_code"),
+        "http_status_code": row.get("http_status_code"),
+        "final_url": row.get("final_url") or row.get("original_url"),
+        "original_url": row.get("original_url"),
+        "response_time_ms": row.get("response_time_ms"),
+    }
+
+    return {
+        "availability": availability_payload,
+        "ssl": ssl_payload,
+        "tls": ssl_payload,
+        "headers": security_headers,
+        "security_headers": security_headers,
+        "dns": dns_payload,
+        "dns_security": dns_payload,
+        "technologies": technologies,
+        "technologies_detected": technologies,
+        "raw_headers": raw_headers,
+        "raw_database_check": row,
+    }
+
+
+
+
+def _report_prepare_scan_payload(scan_row, findings_count):
+    from app.reports.report_helpers import risk_level_from_score, security_rating_from_score
+
+    raw_scan = _history_row_to_dict(scan_row)
+    scan_item = _history_build_item(scan_row, findings_count=findings_count)
+
+    scan_payload = {
+        **raw_scan,
+        **scan_item,
+    }
+
+    score = scan_payload.get("security_score")
+
+    rating = security_rating_from_score(score)
+    risk_level = risk_level_from_score(score)
+
+    scan_payload["security_rating"] = rating
+    scan_payload["grade"] = rating
+    scan_payload["risk_level"] = risk_level
+
+    scan_payload["target"] = (
+        raw_scan.get("target")
+        or scan_item.get("target")
+        or scan_item.get("target_url")
+        or "Unknown target"
+    )
+    scan_payload["target_url"] = (
+        raw_scan.get("target")
+        or scan_item.get("target_url")
+        or scan_item.get("target")
+        or "Unknown target"
+    )
+    scan_payload["status"] = raw_scan.get("status") or scan_item.get("status")
+    scan_payload["authorization_text"] = raw_scan.get("authorization_text")
+    scan_payload["scan_profile"] = "basic"
+    scan_payload["assessment_type"] = _basic_website_assessment_scope()["assessment_type"]
+    scan_payload["assessment_scope"] = _basic_website_assessment_scope()
+
+    return scan_payload
+
+
+def _report_user_can_access_scan(scan_row, current_user):
+    if _is_admin_scan_user(current_user):
+        return True
+
+    row_data = _history_row_to_dict(scan_row)
+    owner_id = row_data.get("user_id")
+
+    if owner_id is None:
+        return False
+
+    try:
+        return int(owner_id) == int(current_user.id)
+    except (TypeError, ValueError):
+        return False
+
+
+@router.get(
+    "/reports/{scan_id}/pdf",
+    summary="Download an official SecureSight360 website security PDF report",
+)
+def download_website_scan_pdf_report(
+    scan_id: int,
+    request: Request,
+    db=Depends(get_db),
+    current_user: AuthenticatedUser = Depends(require_authenticated_user),
+):
+    """
+    Generate one official PDF report for one saved website scan.
+
+    Security rule:
+    - Admins can download any website scan report.
+    - Normal users can download only reports for scans they own.
+    - Report data is filled from scans, website_checks, and findings.
+    - No mock data and no fake findings are generated.
+    """
+    from io import BytesIO
+
+    from fastapi.responses import StreamingResponse
+    from sqlalchemy import text
+
+    from app.reports.website_pdf_report import (
+        build_report_filename,
+        build_website_security_report_pdf,
+    )
+
+    scan_row = db.execute(
+        text(
+            """
+            SELECT *
+            FROM scans
+            WHERE id = :scan_id
+            LIMIT 1
+            """
+        ),
+        {"scan_id": scan_id},
+    ).mappings().first()
+
+    if scan_row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Website scan was not found.",
+        )
+
+    if not _report_user_can_access_scan(scan_row, current_user):
+        write_audit_log(
+            db,
+            event_type="report.download_denied",
+            action="website_pdf_report",
+            outcome="blocked",
+            actor_user_id=current_user.id,
+            actor_email=current_user.email,
+            actor_role=current_user.role,
+            target_resource_type="website_scan",
+            target_resource_id=str(scan_id),
+            details={"scan_id": scan_id},
+            request=request,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Website scan was not found.",
+        )
+
+    website_check_row = db.execute(
+        text(
+            """
+            SELECT *
+            FROM website_checks
+            WHERE scan_id = :scan_id
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        ),
+        {"scan_id": scan_id},
+    ).mappings().first()
+
+    finding_rows = db.execute(
+        text(
+            """
+            SELECT *
+            FROM findings
+            WHERE scan_id = :scan_id
+            ORDER BY
+                CASE LOWER(severity)
+                    WHEN 'critical' THEN 1
+                    WHEN 'high' THEN 2
+                    WHEN 'medium' THEN 3
+                    WHEN 'low' THEN 4
+                    ELSE 5
+                END,
+                id ASC
+            """
+        ),
+        {"scan_id": scan_id},
+    ).mappings().all()
+
+    findings = [_history_build_finding(row) for row in finding_rows]
+    scan_payload = _report_prepare_scan_payload(scan_row, findings_count=len(findings))
+    website_check_payload = _report_build_website_check_payload(
+        _history_row_to_dict(website_check_row) if website_check_row is not None else {}
+    )
+
+    pdf_bytes = build_website_security_report_pdf(
+        scan=scan_payload,
+        website_check=website_check_payload,
+        findings=findings,
+    )
+
+    filename = build_report_filename(scan_payload)
+
+    write_audit_log(
+        db,
+        event_type="report.downloaded",
+        action="website_pdf_report",
+        outcome="success",
+        actor_user_id=current_user.id,
+        actor_email=current_user.email,
+        actor_role=current_user.role,
+        target_resource_type="website_scan",
+        target_resource_id=str(scan_id),
+        details={
+            "scan_id": scan_id,
+            "target": scan_payload.get("target"),
+            "findings_count": len(findings),
+        },
+        request=request,
+    )
+
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+# === SecureSight360 Website PDF Report API END ===
 
 
 # === SecureSight360 Website Scan History API END ===

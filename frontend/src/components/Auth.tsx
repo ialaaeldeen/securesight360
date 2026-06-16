@@ -783,7 +783,7 @@ function Login({
           type="email"
           value={email}
           onChange={setEmail}
-          placeholder="you@example.com"
+          placeholder="you@company.com"
           autoComplete="email"
         />
 

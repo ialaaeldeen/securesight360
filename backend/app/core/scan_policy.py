@@ -1,8 +1,8 @@
 """
-CyberShield360 ethical scanning policy.
+SecureSight360 ethical scanning policy.
 
 This file defines the safety rules used by the platform.
-CyberShield360 must only scan systems owned by the user
+SecureSight360 must only scan systems owned by the user
 or systems where the user has explicit written permission.
 """
 

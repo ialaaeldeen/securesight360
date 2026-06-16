@@ -13,14 +13,14 @@ router = APIRouter(prefix="/health", tags=["Health"])
 @router.get("")
 def health_check() -> dict[str, Any]:
     """
-    Return the basic health status of the CyberShield360 backend.
+    Return the basic health status of the SecureSight360 backend.
     """
 
     return {
         "status": "healthy",
-        "service": "CyberShield360 Backend",
+        "service": "SecureSight360 Backend",
         "environment": _get_environment(),
-        "message": "CyberShield360 Backend is healthy.",
+        "message": "SecureSight360 Backend is healthy.",
         "timestamp": datetime.now(UTC).isoformat(),
     }
 
@@ -37,13 +37,13 @@ def health_check_with_slash() -> dict[str, Any]:
 @router.get("/readiness")
 def readiness_check() -> dict[str, Any]:
     """
-    Return the readiness status of the CyberShield360 backend.
+    Return the readiness status of the SecureSight360 backend.
     """
 
     return {
         "status": "ready",
         "ready": True,
-        "service": "CyberShield360 Backend",
+        "service": "SecureSight360 Backend",
         "environment": _get_environment(),
         "message": "API is ready to receive requests",
         "timestamp": datetime.now(UTC).isoformat(),

@@ -7,7 +7,7 @@ from app.core.scan_policy import AUTHORIZED_SCAN_MESSAGE, MAX_ALLOWED_SUBNET_PRE
 
 class ValidationError(ValueError):
     """
-    Custom validation error for CyberShield360 input validation.
+    Custom validation error for SecureSight360 input validation.
     """
 
     pass
@@ -17,7 +17,7 @@ def validate_authorization(authorization_confirmed: bool) -> str:
     """
     Ensure the user confirmed authorization before scanning.
 
-    CyberShield360 must only scan systems owned by the user
+    SecureSight360 must only scan systems owned by the user
     or systems where the user has explicit permission.
     """
 

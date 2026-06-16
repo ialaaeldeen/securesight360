@@ -54,7 +54,7 @@ def enum_values(enum_class: type[Enum]) -> list[str]:
 
 class Scan(Base, TimestampMixin):
     """
-    Stores one CyberShield360 scan session.
+    Stores one SecureSight360 scan session.
 
     A scan represents one assessment request against an authorized target.
     Examples:

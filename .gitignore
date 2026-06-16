@@ -93,3 +93,16 @@ __pycache__/
 # Frontend backups
 frontend_backup*/
 frontend_lovable_temp/
+
+# Local cleanup archives and temporary inspection files
+_cleanup_archives/
+frontend/backups/
+CLEANUP_CANDIDATES_INSPECTION.txt
+cleanup-backups-safe.ps1
+backend/WhatsApp Image*.jpeg
+backend/WhatsApp Image*.jpg
+backend/WhatsApp Image*.png
+
+# Local documentation inspection and backup files
+DOCUMENTATION_INSPECTION.txt
+backups/

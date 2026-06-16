@@ -29,7 +29,7 @@ class ReportStatus(str, Enum):
 
 class Report(Base, TimestampMixin):
     """
-    Stores metadata for a generated CyberShield360 report.
+    Stores metadata for a generated SecureSight360 report.
 
     The actual report file will be stored in the reports directory.
     This table stores report metadata such as format, status,

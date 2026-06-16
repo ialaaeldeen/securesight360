@@ -1,5 +1,5 @@
 """
-CyberShield360 database models.
+SecureSight360 database models.
 
 This package imports all SQLAlchemy models so they are registered
 with SQLAlchemy metadata and can be detected by Alembic migrations

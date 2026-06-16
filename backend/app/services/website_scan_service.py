@@ -491,7 +491,7 @@ def _build_website_check_row(
                     dns_email_payload.get("dkim_note"),
                 )
             ),
-            "technologies": _compact_plain_data(
+            "technologies_detected": _compact_plain_data(
                 _first_not_none(
                     raw_payload.get("technologies_detected"),
                     scan_payload.get("technologies_detected"),
@@ -870,7 +870,7 @@ def _default_value_for_required_column(
     if column_name == "description":
         if table_name == "findings":
             return "Website security finding generated from the risk engine."
-        return "Website security scan result persisted by CyberShield360."
+        return "Website security scan result persisted by SecureSight360."
 
     if column_name == "recommendation":
         return "Review the website security findings and apply the recommended controls."

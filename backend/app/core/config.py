@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """
-    Central configuration for CyberShield360 backend.
+    Central configuration for SecureSight360 backend.
 
     This file controls project settings, database connection,
     scanner limits, security options, and environment behavior.
@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     )
 
     # Application
-    PROJECT_NAME: str = "CyberShield360"
+    PROJECT_NAME: str = "SecureSight360"
     API_PREFIX: str = "/api/v1"
     APP_ENV: Literal["development", "testing", "production"] = "development"
     DEBUG: bool = True

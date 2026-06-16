@@ -10,7 +10,7 @@ from app.models.scan import enum_values
 
 class FindingSeverity(str, Enum):
     """
-    Finding severity levels used across CyberShield360.
+    Finding severity levels used across SecureSight360.
 
     These values will be used for:
     - Dashboard cards

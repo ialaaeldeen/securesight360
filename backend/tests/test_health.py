@@ -13,7 +13,7 @@ def test_root_endpoint_returns_api_status() -> None:
 
     data = response.json()
 
-    assert data["project"] == "CyberShield360"
+    assert data["project"] == "SecureSight360"
     assert data["status"] == "online"
     assert data["environment"] == "development"
     assert data["version"] == "1.0.0"
@@ -27,7 +27,7 @@ def test_health_endpoint_returns_healthy_status() -> None:
 
     data = response.json()
 
-    assert data["service"] == "CyberShield360 Backend"
+    assert data["service"] == "SecureSight360 Backend"
     assert data["status"] == "healthy"
     assert data["environment"] == "development"
     assert "timestamp" in data
@@ -40,7 +40,7 @@ def test_readiness_endpoint_returns_ready_status() -> None:
 
     data = response.json()
 
-    assert data["service"] == "CyberShield360 Backend"
+    assert data["service"] == "SecureSight360 Backend"
     assert data["ready"] is True
     assert data["message"] == "API is ready to receive requests"
     assert "timestamp" in data

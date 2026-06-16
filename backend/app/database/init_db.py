@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 def init_db() -> None:
     """
-    Initialize the CyberShield360 database.
+    Initialize the SecureSight360 database.
 
     This creates all database tables defined in SQLAlchemy models.
 

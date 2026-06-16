@@ -39,13 +39,13 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """
-    Create and configure the CyberShield360 FastAPI application.
+    Create and configure the SecureSight360 FastAPI application.
     """
 
     app = FastAPI(
         title=f"{settings.PROJECT_NAME} API",
         description=(
-            "CyberShield360 backend API for authorized website security scanning, "
+            "SecureSight360 backend API for authorized website security scanning, "
             "network assessment, risk scoring, SOC-style dashboards, and reporting."
         ),
         version="1.0.0",
@@ -103,7 +103,7 @@ def root():
     """
     return {
         "project": settings.PROJECT_NAME,
-        "message": "CyberShield360 API is running",
+        "message": "SecureSight360 API is running",
         "status": "online",
         "environment": settings.APP_ENV,
         "version": "1.0.0",
