@@ -6,7 +6,8 @@ import {
 import cs360Logo from "@/assets/cs360-logo.png";
 import { useAuth } from "@/lib/auth";
 
-type View = "splash" | "login" | "signup";
+type View = "splash" | "login" | "accountType" | "signup";
+type SignupAccountType = "personal" | "business";
 
 const BASIC_EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -98,6 +99,7 @@ interface Props {
 
 export function Auth({ onAuthenticated }: Props) {
   const [view, setView] = useState<View>("splash");
+  const [signupAccountType, setSignupAccountType] = useState<SignupAccountType>("personal");
 
   // Whenever the auth screen mounts (fresh session / after logout), clear any
   // previously-registered company domain so the next signup binds strictly to
@@ -155,30 +157,42 @@ export function Auth({ onAuthenticated }: Props) {
       </div>
 
       <div className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col px-4 lg:px-8 py-6">
-        <TopBar onLogin={() => setView("login")} onSignup={() => setView("signup")} onHome={() => setView("splash")} />
+        <TopBar onLogin={() => setView("login")} onSignup={() => setView("accountType")} onHome={() => setView("splash")} />
 
         <div className="flex-1 flex items-center justify-center py-10">
           {view === "splash" && (
-            <Splash onLogin={() => setView("login")} onSignup={() => setView("signup")} />
+            <Splash onLogin={() => setView("login")} onSignup={() => setView("accountType")} />
           )}
         {view === "login" && (
   <Login
     onAuthenticated={onAuthenticated}
-    onSignup={() => setView("signup")}
+    onSignup={() => setView("accountType")}
   />
 )}
+{view === "accountType" && (
+  <AccountTypeSelection
+    onSelect={(type) => {
+      setSignupAccountType(type);
+      setView("signup");
+    }}
+    onLogin={() => setView("login")}
+  />
+)}
+
 {view === "signup" && (
   <Signup
+    accountType={signupAccountType}
     onVerified={onAuthenticated}
     onLogin={() => setView("login")}
+    onBack={() => setView("accountType")}
   />
 )}
         </div>
 
-        <SiteFooter onHome={() => setView("splash")} onLogin={() => setView("login")} onSignup={() => setView("signup")} />
+        <SiteFooter onHome={() => setView("splash")} onLogin={() => setView("login")} onSignup={() => setView("accountType")} />
       </div>
 
-      <AiAssistant onSignup={() => setView("signup")} />
+      <AiAssistant onSignup={() => setView("accountType")} />
     </div>
   );
 }
@@ -395,22 +409,28 @@ function TopBar({ onLogin, onSignup, onHome }: { onLogin: () => void; onSignup: 
 
 function Splash({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
   const services = [
-    { i: Building2, t: "Project Management", d: "Strategic oversight for IT and cybersecurity projects from planning to execution. We ensure on-time, on-budget delivery while maintaining strict quality and security standards." },
-    { i: Radar, t: "Cybersecurity Operations (SOC Monitoring)", d: "24/7 threat detection and response from our Security Operations Center. We monitor, analyze, and neutralize cyber threats in real time — ensuring your business stays protected around the clock." },
-    { i: BarChart3, t: "Data, AI & Analytics", d: "We help organizations harness the power of data and artificial intelligence to drive smarter decisions and automation. Our solutions span data engineering, advanced analytics, and machine learning—turning raw data into actionable insights." },
-    { i: Globe, t: "Website Security Scanning", d: "Availability, SSL/TLS, headers, DNS & email checks across your domains." },
-    { i: ShieldCheck, t: "Compliance Alignment", d: "Reports mapped to OWASP, NIST and ISO 27001 guidance for auditors." },
-    { i: Lock, t: "Authorized-Only Scans", d: "Safe, read-only checks with verified domain ownership." },
+    { i: Globe, t: "Website Security Posture Assessment", d: "Authorized external checks for SSL/TLS, security headers, DNS posture, and email authentication records across verified business domains." },
+    { i: Mail, t: "AI Email Threat Analyzer", d: "Coming soon: AI-assisted phishing review for suspicious emails, sender details, links, and optional headers using professional verdicts instead of numeric scores." },
+    { i: FileText, t: "Security Reports and Evidence", d: "Executive summaries, technical evidence, priority actions, and client-ready PDF reports for authorized website assessments." },
+    { i: Sparkles, t: "Browser Extension / Email Add-on Roadmap", d: "Future Gmail, Outlook, and browser-assisted workflows for user-controlled suspicious email submission and review." },
+    { i: Lock, t: "Authorized-Only Website Checks", d: "Website assessment remains safe, read-only, and limited to verified business domains owned or authorized by the user." },
+    { i: Building2, t: "Domain Verification & Access Control", d: "Personal users can use the planned Email Analyzer, while Website Scanner, Reports, and Scan History require verified business domain access." },
   ];
 
   const faqs = [
-    { q: "Why is cybersecurity important for my business?", a: "Cyberattacks can disrupt operations, leak customer data, and damage trust. SecureSight360 reduces that risk with continuous monitoring, scanning, and rapid response." },
-    { q: "How often do you scan my website?", a: "On-demand scans run whenever you want, and continuous monitoring re-checks your verified domains on a weekly schedule with change detection." },
-    { q: "Where is my scan and report data stored?", a: "All scan results and reports stay inside your private console. We never sell or share your data with third parties." },
-    { q: "Can you respond quickly to an active incident?", a: "Yes. Our SOC team is on-call 24/7 to triage incidents, contain threats, and guide your team through recovery." },
-    { q: "Do you protect against ransomware and phishing?", a: "We combine email/DNS hardening checks, endpoint guidance, and live monitoring to reduce exposure to ransomware and phishing campaigns." },
-    { q: "Is my data encrypted?", a: "Yes — data is encrypted in transit (TLS) and at rest, and access is gated by 2FA on every account." },
+    { q: "Why is cybersecurity important for my business?", a: "Cyberattacks can disrupt operations, leak customer data, and damage trust. SecureSight360 helps reduce exposure through authorized website posture assessment, evidence-backed reports, and planned AI-assisted email threat analysis." },
+    { q: "How often do you scan my website?", a: "Website assessments are currently on-demand for verified business domains. Future monitoring can be expanded carefully without changing the rule that website scanning must remain authorized." },
+    { q: "Where is my scan and report data stored?", a: "Scan results and reports stay inside your SecureSight360 console. The platform should never sell your data or share it with third parties." },
+    { q: "Can I use the Email Analyzer with a personal email?", a: "The planned AI Email Threat Analyzer is intended to support personal and business users. Personal users should be able to analyze suspicious emails, but website scanning remains limited to verified business/domain users." },
+    { q: "Do I need a business domain to analyze suspicious emails?", a: "No. The Email Analyzer is different from website scanning. It is planned for suspicious email review and should be available to personal and business users once implemented." },
+    { q: "Is the Email Analyzer the same as website scanning?", a: "No. Website assessment checks authorized domain posture such as SSL/TLS, headers, DNS, and evidence-backed recommendations. The Email Analyzer reviews submitted email content, sender details, links, and optional headers for phishing or social engineering indicators." },
+    { q: "Does SecureSight360 read my inbox automatically?", a: "No. The planned Email Analyzer should analyze only what the user submits. It should not automatically read mailboxes or inboxes." },
+    { q: "Will the system open suspicious links or attachments?", a: "No. Suspicious links should not be opened automatically, and attachments should not be executed. The analyzer should inspect indicators safely without triggering harmful content." },
+    { q: "What will the AI analyzer detect?", a: "It should detect and explain suspicious behaviors such as display-name spoofing, sender mismatch, Reply-To mismatch, lookalike domains, suspicious links, URL shorteners, urgency language, credential theft language, fake invoices, payment fraud, brand impersonation, and social engineering patterns." },
+    { q: "Will there be a browser extension for Gmail or Outlook?", a: "Browser extension, Gmail add-on, and Outlook add-on support are roadmap items. They should be presented as future planned capabilities until fully implemented and tested." },
+    { q: "Is website scanning available for personal users?", a: "No. Website scanning, website reports, and scan history require a verified business domain. The website scanner must remain domain-authorized only." },
   ];
+
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
@@ -428,7 +448,7 @@ function Splash({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => vo
           </h1>
           <div id="about" className="scroll-mt-24 max-w-3xl">
             <p className="text-lg leading-relaxed text-muted-foreground">
-              <span className="text-foreground font-semibold">SecureSight360</span> delivers next-generation cybersecurity and IT solutions that empower businesses to stay secure, agile, and future-ready. From endpoint protection, threat detection, and incident response to cloud security, IT support, and project management — we ensure your entire technology ecosystem runs efficiently and remains resilient against evolving digital threats.
+              <span className="text-foreground font-semibold">SecureSight360</span> is evolving into a professional cybersecurity platform for authorized website security posture assessment, evidence-backed reporting, and planned AI-assisted suspicious email analysis. Website assessment remains domain-authorized and should not be described as a full penetration test or full vulnerability assessment.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -475,7 +495,7 @@ function Splash({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => vo
             We help you <span className="bg-gradient-to-r from-cyan to-accent-blue bg-clip-text text-transparent">secure your website</span> end-to-end.
           </h2>
           <p className="text-muted-foreground leading-relaxed">
-            SecureSight360 empowers your organization with continuous security monitoring, in-depth vulnerability scan analysis, and expert cybersecurity consultation. We identify weaknesses across your digital infrastructure, interpret scan results into clear, actionable insights, and guide your team with tailored recommendations — so you stay protected, compliant, and ahead of emerging threats.
+            SecureSight360 empowers your organization with authorized website posture assessment, evidence-backed reporting, and expert cybersecurity consultation. We identify visible posture gaps across verified domains, interpret assessment results into clear actionable insights, and guide your team with practical recommendations — so you stay protected, compliant, and ahead of emerging threats.
           </p>
           <ul className="space-y-3 pt-2">
             {[
@@ -511,7 +531,7 @@ function Splash({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => vo
 
             <div className="grid grid-cols-2 gap-3 md:gap-4 relative">
               <Stat label="Risk reduction" value="-72%" sub="avg. across audits" tone="text-cyan" icon={BarChart3} />
-              <Stat label="Domains protected" value="1.2k+" sub="and counting" tone="text-accent-blue" icon={Globe} />
+              <Stat label="Website checks" value="Authorized" sub="verified business domains only" tone="text-accent-blue" icon={Globe} />
               <Stat label="Time to detect" value="<5min" sub="real-time alerts" tone="text-success" icon={Radar} />
               <Stat label="SOC coverage" value="24/7" sub="always watching" tone="text-soft" icon={ShieldCheck} />
             </div>
@@ -531,6 +551,55 @@ function Splash({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => vo
 
       </section>
 
+      {/* AI EMAIL THREAT ANALYZER - COMPACT SECTION */}
+      <section id="email-analyzer" className="scroll-mt-24" data-reveal>
+        <div className="rounded-[2rem] border border-border bg-surface/70 p-6 md:p-8 transition-all duration-300 ease-out hover:-translate-y-1 hover:border-cyan/40 hover:shadow-xl hover:shadow-cyan/10">
+          <div className="inline-flex items-center gap-2 rounded-full bg-surface/80 border border-border px-5 py-1.5 text-sm">
+            <Mail className="h-3.5 w-3.5 text-cyan" /> AI Email Threat Analyzer
+          </div>
+
+          <div className="mt-6 grid gap-8 lg:grid-cols-[0.95fr_1.05fr] items-start">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">
+                Planned phishing and suspicious email behavior analysis.
+              </h2>
+              <p className="mt-4 text-muted-foreground leading-7">
+                The upcoming AI Email Threat Analyzer will allow users to submit suspicious email text, sender details, links, and optional headers for professional behavior-based analysis. It will use clear verdicts such as Suspicious, Malicious, Impersonation Attempt, Credential Theft Attempt, Business Email Compromise Attempt, Payment or Invoice Fraud Attempt, Link-Based Phishing Attempt, and Attachment-Based Threat Suspicion.
+              </p>
+              <p className="mt-4 text-sm text-muted-foreground leading-7">
+                This feature is planned for both personal and business users. Website Scanner, Reports, and Scan History remain limited to verified business/domain users.
+              </p>
+
+              <div className="mt-5 flex flex-col sm:flex-row gap-3">
+                <button onClick={onSignup} className="inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan hover:brightness-110 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan/20">
+                  <Mail className="h-4 w-4" /> Analyze Suspicious Email
+                </button>
+                <button onClick={onLogin} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/50 px-5 py-3 text-sm hover:bg-secondary transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-cyan/40">
+                  <Globe className="h-4 w-4" /> Start Website Assessment
+                </button>
+                <button onClick={() => document.getElementById("faq")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface/60 px-5 py-3 text-sm hover:bg-surface transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-cyan/40">
+                  <Sparkles className="h-4 w-4" /> Learn About Browser Extension
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              {[
+                "Email content is analyzed only when submitted by the user.",
+                "No automatic mailbox or inbox reading.",
+                "Suspicious links are not opened automatically.",
+                "Attachments are not executed.",
+                "Full email body should not be stored by default in the future implementation.",
+              ].map((item) => (
+                <div key={item} className="flex items-start gap-3 rounded-2xl border border-border bg-background/40 px-4 py-3 text-sm text-muted-foreground transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-cyan/40">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-cyan shrink-0" />
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
       {/* FAQ */}
       <section id="faq" className="scroll-mt-24">
         <div data-reveal className="flex flex-col items-center text-center mb-10">
@@ -820,8 +889,7 @@ function Login({
             {error}
           </div>
         )}
-
-        <button
+<button
           type="submit"
           disabled={!valid || submitting}
           className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition"
@@ -845,12 +913,86 @@ function Login({
   );
 }
 
-function Signup({
-  onVerified,
+
+function AccountTypeSelection({
+  onSelect,
   onLogin,
 }: {
+  onSelect: (type: SignupAccountType) => void;
+  onLogin: () => void;
+}) {
+  return (
+    <AuthShell
+      icon={User}
+      title="Choose account type"
+      subtitle="Select the account that matches how you want to use SecureSight360"
+    >
+      <div className="space-y-4">
+        <button
+          type="button"
+          onClick={() => onSelect("personal")}
+          className="group w-full rounded-2xl border border-border bg-surface/70 p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-cyan/40 hover:shadow-lg hover:shadow-cyan/10"
+        >
+          <div className="flex items-start gap-4">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-cyan/10 text-cyan border border-cyan/20">
+              <Mail className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-lg font-semibold group-hover:text-cyan transition">
+                Personal Account
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Use Gmail, Outlook, Yahoo, Hotmail, or another personal email. This account can use the AI Email Analyzer and Email Analysis History.
+              </p>
+            </div>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSelect("business")}
+          className="group w-full rounded-2xl border border-border bg-surface/70 p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-cyan/40 hover:shadow-lg hover:shadow-cyan/10"
+        >
+          <div className="flex items-start gap-4">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-cyan/10 text-cyan border border-cyan/20">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-lg font-semibold group-hover:text-cyan transition">
+                Business Domain Account
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Use your company or organization email. This unlocks authorized Website Scanner, Reports, Website Assessment History, Email Analyzer, and Email Analysis History.
+              </p>
+              <p className="mt-3 text-xs leading-5 text-warning">
+                Gmail, Yahoo, Outlook, Hotmail, and other personal providers are not accepted for business-domain accounts.
+              </p>
+            </div>
+          </div>
+        </button>
+
+        <p className="text-center text-xs text-muted-foreground">
+          Already have an account?{" "}
+          <button type="button" onClick={onLogin} className="text-cyan hover:underline">
+            Sign in
+          </button>
+        </p>
+      </div>
+    </AuthShell>
+  );
+}
+
+
+function Signup({
+  accountType,
+  onVerified,
+  onLogin,
+  onBack,
+}: {
+  accountType: SignupAccountType;
   onVerified: () => void;
   onLogin: () => void;
+  onBack: () => void;
 }) {
   const { register } = useAuth() as any;
 
@@ -863,18 +1005,17 @@ function Signup({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isBusinessSignup = accountType === "business";
   const validEmail = BASIC_EMAIL_REGEX.test(email.trim());
-  const businessEmailError = getBusinessEmailError(email);
-  const validBusinessEmail = validEmail && !businessEmailError;
-  const businessEmailDomain = validBusinessEmail
-    ? email.trim().toLowerCase().split("@").pop() || ""
-    : "";
+  const businessEmailError = isBusinessSignup ? getBusinessEmailError(email) : null;
+  const validAccountEmail = validEmail && !businessEmailError;
+  const detectedDomain = validEmail ? email.trim().toLowerCase().split("@").pop() || "" : "";
   const passwordError = getPasswordError(pwd);
 
   const valid =
     name.trim().length > 1 &&
-    company.trim().length > 1 &&
-    validBusinessEmail &&
+    (!isBusinessSignup || company.trim().length > 1) &&
+    validAccountEmail &&
     pwd.length >= 8 &&
     !passwordError &&
     agree;
@@ -892,11 +1033,16 @@ function Signup({
         email: email.trim(),
         password: pwd,
         full_name: name.trim(),
-        company_name: company.trim(),
+        company_name: isBusinessSignup ? company.trim() : null,
+        account_type: accountType,
       });
 
       try {
-        localStorage.setItem("cs360-company-name", company.trim());
+        if (isBusinessSignup) {
+          localStorage.setItem("cs360-company-name", company.trim());
+        } else {
+          localStorage.removeItem("cs360-company-name");
+        }
         localStorage.setItem("cs360-user-name", name.trim());
         localStorage.setItem("cs360-user-email", user.email);
         localStorage.setItem("cs360-registered-at", new Date().toISOString());
@@ -913,8 +1059,12 @@ function Signup({
   return (
     <AuthShell
       icon={User}
-      title="Create your account"
-      subtitle="Create a SecureSight360 user account"
+      title={isBusinessSignup ? "Create business account" : "Create personal account"}
+      subtitle={
+        isBusinessSignup
+          ? "Use your business-domain email to unlock website assessment features"
+          : "Use any personal email to access the AI Email Analyzer"
+      }
     >
       <form onSubmit={submit} className="space-y-4">
         <Field
@@ -925,20 +1075,22 @@ function Signup({
           autoComplete="name"
         />
 
-        <Field
-          icon={Building2}
-          value={company}
-          onChange={setCompany}
-          placeholder="Company name"
-          autoComplete="organization"
-        />
+        {isBusinessSignup && (
+          <Field
+            icon={Building2}
+            value={company}
+            onChange={setCompany}
+            placeholder="Company name"
+            autoComplete="organization"
+          />
+        )}
 
         <Field
           icon={Mail}
           type="email"
           value={email}
           onChange={setEmail}
-          placeholder="you@company.com"
+          placeholder={isBusinessSignup ? "you@company.com" : "you@gmail.com"}
           autoComplete="email"
         />
 
@@ -956,12 +1108,18 @@ function Signup({
           </p>
         )}
 
-        {businessEmailDomain && (
+        {detectedDomain && (
           <p className="mt-1.5 text-xs text-cyan flex items-center gap-1.5">
             <CheckCircle2 className="h-3.5 w-3.5" />
-            Domain detected: {businessEmailDomain}
+            {isBusinessSignup ? "Business domain detected" : "Personal email detected"}: {detectedDomain}
           </p>
         )}
+
+        <div className="rounded-xl border border-border bg-surface/50 px-3 py-2 text-xs leading-5 text-muted-foreground">
+          {isBusinessSignup
+            ? "Business-domain accounts can use Website Scanner, Reports, Website Assessment History, Email Analyzer, and Email Analysis History."
+            : "Personal accounts can use Email Analyzer and Email Analysis History. Website Scanner, Reports, and Website Assessment History require a business-domain account."}
+        </div>
 
         <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2.5 focus-within:border-cyan/60 focus-within:ring-2 focus-within:ring-cyan/20">
           <KeyRound className="h-4 w-4 text-muted-foreground" />
@@ -999,7 +1157,7 @@ function Signup({
             <a className="text-cyan hover:underline" href="#">
               Privacy Policy
             </a>
-            , and I confirm I will only run authorized security assessments.
+            , and I confirm I will only run authorized security assessments when using website assessment features.
           </span>
         </label>
 
@@ -1016,6 +1174,14 @@ function Signup({
             {passwordError}
           </p>
         )}
+
+        <button
+          type="button"
+          onClick={onBack}
+          className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-5 py-3 text-sm hover:border-cyan/40 hover:text-cyan transition"
+        >
+          Change account type
+        </button>
 
         <button
           type="submit"
@@ -1040,3 +1206,6 @@ function Signup({
     </AuthShell>
   );
 }
+
+
+

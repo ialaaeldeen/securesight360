@@ -155,6 +155,7 @@ class RegisterRequest(BaseModel):
     password: str = Field(..., min_length=8, description="Account password.")
     full_name: str | None = Field(default=None, max_length=255)
     company_name: str | None = Field(default=None, max_length=255)
+    account_type: str = Field(default="business", description="personal or business")
 
 
 class UserResponse(BaseModel):
@@ -212,6 +213,19 @@ def _validate_business_email(email: str) -> str:
         )
 
     return email
+
+
+
+def _normalize_account_type(value: str | None) -> str:
+    account_type = (value or "business").strip().lower()
+
+    if account_type not in {"personal", "business"}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Account type must be either personal or business.",
+        )
+
+    return account_type
 
 
 def _validate_password(password: str) -> str:
@@ -335,7 +349,11 @@ def _public_user_response(
     db: Session | None = None,
 ) -> UserResponse:
     payload = dict(user.to_dict())
-    payload["company_domain"] = _email_domain(user.email)
+
+    email_domain = _email_domain(user.email)
+    payload["company_domain"] = (
+        None if email_domain in PERSONAL_EMAIL_DOMAINS else email_domain
+    )
 
     if db is not None:
         row = db.execute(
@@ -356,7 +374,6 @@ def _public_user_response(
             payload["last_login_at"] = str(row.get("last_login_at") or "")
 
     return UserResponse(**payload)
-
 
 def _login_response_for_user(user: AuthenticatedUser, db: Session | None = None) -> LoginResponse:
     token = create_access_token(
@@ -445,9 +462,13 @@ def login(
     summary="Create a normal user account",
 )
 def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> LoginResponse:
-    email = _validate_business_email(_validate_email(payload.email))
-    password = _validate_password(payload.password)
+    account_type = _normalize_account_type(payload.account_type)
+    email = _validate_email(payload.email)
 
+    if account_type == "business":
+        email = _validate_business_email(email)
+
+    password = _validate_password(payload.password)
     full_name = _safe_name(payload.full_name)
 
     user = _create_normal_user(

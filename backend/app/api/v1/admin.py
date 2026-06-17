@@ -270,6 +270,123 @@ def get_admin_dashboard(
             f"WHERE date({date_column}) = date('now')",
         )
 
+    # === SecureSight360 Admin Email Oversight Metrics START ===
+    total_email_analyses = 0
+    suspicious_email_count = 0
+    high_confidence_email_count = 0
+    email_links_reviewed = 0
+    email_attachments_reviewed = 0
+    email_headers_provided = 0
+    email_verdict_distribution: dict[str, int] = {}
+    recent_email_analyses: list[dict[str, Any]] = []
+    most_active_email_users: list[dict[str, Any]] = []
+
+    if _table_exists(db, "email_analyses"):
+        email_rows = [
+            dict(row)
+            for row in db.execute(
+                text(
+                    """
+                    SELECT
+                        id,
+                        user_id,
+                        user_email,
+                        user_full_name,
+                        subject_preview,
+                        sender_preview,
+                        verdict,
+                        confidence,
+                        evidence_strength,
+                        summary,
+                        links_count,
+                        attachments_count,
+                        headers_provided,
+                        analyzer_version,
+                        created_at
+                    FROM email_analyses
+                    ORDER BY created_at DESC, id DESC
+                    """
+                )
+            ).mappings().all()
+        ]
+
+        total_email_analyses = len(email_rows)
+        email_user_activity: dict[str, dict[str, Any]] = {}
+
+        for row in email_rows:
+            verdict = str(row.get("verdict") or "Unknown").strip() or "Unknown"
+            verdict_lower = verdict.lower()
+            confidence = str(row.get("confidence") or "").strip().lower()
+
+            _increase(email_verdict_distribution, verdict)
+
+            is_safe = "safe" in verdict_lower or "no obvious threat" in verdict_lower
+            if not is_safe:
+                suspicious_email_count += 1
+
+            if confidence == "high":
+                high_confidence_email_count += 1
+
+            try:
+                email_links_reviewed += int(row.get("links_count") or 0)
+            except (TypeError, ValueError):
+                pass
+
+            try:
+                email_attachments_reviewed += int(row.get("attachments_count") or 0)
+            except (TypeError, ValueError):
+                pass
+
+            if bool(row.get("headers_provided")):
+                email_headers_provided += 1
+
+            user_key = str(
+                row.get("user_id")
+                or row.get("user_email")
+                or "unknown"
+            )
+
+            if user_key not in email_user_activity:
+                email_user_activity[user_key] = {
+                    "id": row.get("user_id"),
+                    "email": row.get("user_email"),
+                    "full_name": row.get("user_full_name"),
+                    "email_analysis_count": 0,
+                    "total_email_analyses": 0,
+                }
+
+            email_user_activity[user_key]["email_analysis_count"] += 1
+            email_user_activity[user_key]["total_email_analyses"] += 1
+
+        for row in email_rows[:10]:
+            recent_email_analyses.append(
+                {
+                    "id": row.get("id"),
+                    "user_id": row.get("user_id"),
+                    "user_email": row.get("user_email"),
+                    "user_full_name": row.get("user_full_name"),
+                    "subject_preview": row.get("subject_preview"),
+                    "sender_preview": row.get("sender_preview"),
+                    "verdict": row.get("verdict"),
+                    "confidence": row.get("confidence"),
+                    "evidence_strength": row.get("evidence_strength"),
+                    "summary": row.get("summary"),
+                    "links_count": row.get("links_count"),
+                    "attachments_count": row.get("attachments_count"),
+                    "headers_provided": bool(row.get("headers_provided")),
+                    "analyzer_version": row.get("analyzer_version"),
+                    "created_at": row.get("created_at"),
+                }
+            )
+
+        most_active_email_users = sorted(
+            email_user_activity.values(),
+            key=lambda item: int(item.get("email_analysis_count") or 0),
+            reverse=True,
+        )[:8]
+
+    # === SecureSight360 Admin Email Oversight Metrics END ===
+
     return {
         "total_users": total_users,
         "total_admins": total_admins,
@@ -1082,6 +1199,123 @@ def get_admin_dashboard_analysis(
             reverse=True,
         )[:8]
 
+    # === SecureSight360 Admin Email Oversight Metrics START ===
+    total_email_analyses = 0
+    suspicious_email_count = 0
+    high_confidence_email_count = 0
+    email_links_reviewed = 0
+    email_attachments_reviewed = 0
+    email_headers_provided = 0
+    email_verdict_distribution: dict[str, int] = {}
+    recent_email_analyses: list[dict[str, Any]] = []
+    most_active_email_users: list[dict[str, Any]] = []
+
+    if _table_exists(db, "email_analyses"):
+        email_rows = [
+            dict(row)
+            for row in db.execute(
+                text(
+                    """
+                    SELECT
+                        id,
+                        user_id,
+                        user_email,
+                        user_full_name,
+                        subject_preview,
+                        sender_preview,
+                        verdict,
+                        confidence,
+                        evidence_strength,
+                        summary,
+                        links_count,
+                        attachments_count,
+                        headers_provided,
+                        analyzer_version,
+                        created_at
+                    FROM email_analyses
+                    ORDER BY created_at DESC, id DESC
+                    """
+                )
+            ).mappings().all()
+        ]
+
+        total_email_analyses = len(email_rows)
+        email_user_activity: dict[str, dict[str, Any]] = {}
+
+        for row in email_rows:
+            verdict = str(row.get("verdict") or "Unknown").strip() or "Unknown"
+            verdict_lower = verdict.lower()
+            confidence = str(row.get("confidence") or "").strip().lower()
+
+            _increase(email_verdict_distribution, verdict)
+
+            is_safe = "safe" in verdict_lower or "no obvious threat" in verdict_lower
+            if not is_safe:
+                suspicious_email_count += 1
+
+            if confidence == "high":
+                high_confidence_email_count += 1
+
+            try:
+                email_links_reviewed += int(row.get("links_count") or 0)
+            except (TypeError, ValueError):
+                pass
+
+            try:
+                email_attachments_reviewed += int(row.get("attachments_count") or 0)
+            except (TypeError, ValueError):
+                pass
+
+            if bool(row.get("headers_provided")):
+                email_headers_provided += 1
+
+            user_key = str(
+                row.get("user_id")
+                or row.get("user_email")
+                or "unknown"
+            )
+
+            if user_key not in email_user_activity:
+                email_user_activity[user_key] = {
+                    "id": row.get("user_id"),
+                    "email": row.get("user_email"),
+                    "full_name": row.get("user_full_name"),
+                    "email_analysis_count": 0,
+                    "total_email_analyses": 0,
+                }
+
+            email_user_activity[user_key]["email_analysis_count"] += 1
+            email_user_activity[user_key]["total_email_analyses"] += 1
+
+        for row in email_rows[:10]:
+            recent_email_analyses.append(
+                {
+                    "id": row.get("id"),
+                    "user_id": row.get("user_id"),
+                    "user_email": row.get("user_email"),
+                    "user_full_name": row.get("user_full_name"),
+                    "subject_preview": row.get("subject_preview"),
+                    "sender_preview": row.get("sender_preview"),
+                    "verdict": row.get("verdict"),
+                    "confidence": row.get("confidence"),
+                    "evidence_strength": row.get("evidence_strength"),
+                    "summary": row.get("summary"),
+                    "links_count": row.get("links_count"),
+                    "attachments_count": row.get("attachments_count"),
+                    "headers_provided": bool(row.get("headers_provided")),
+                    "analyzer_version": row.get("analyzer_version"),
+                    "created_at": row.get("created_at"),
+                }
+            )
+
+        most_active_email_users = sorted(
+            email_user_activity.values(),
+            key=lambda item: int(item.get("email_analysis_count") or 0),
+            reverse=True,
+        )[:8]
+
+    # === SecureSight360 Admin Email Oversight Metrics END ===
+
     return {
         "total_users": total_users,
         "active_users": active_users,
@@ -1103,6 +1337,15 @@ def get_admin_dashboard_analysis(
         "riskiest_targets": riskiest_targets,
         "most_active_users": most_active_users,
         "top_users_by_scans": most_active_users,
+        "total_email_analyses": total_email_analyses,
+        "suspicious_email_count": suspicious_email_count,
+        "high_confidence_email_count": high_confidence_email_count,
+        "email_links_reviewed": email_links_reviewed,
+        "email_attachments_reviewed": email_attachments_reviewed,
+        "email_headers_provided": email_headers_provided,
+        "email_verdict_distribution": email_verdict_distribution,
+        "recent_email_analyses": recent_email_analyses,
+        "most_active_email_users": most_active_email_users,
         "summary": {
             "total_users": total_users,
             "active_users": active_users,
@@ -1115,11 +1358,17 @@ def get_admin_dashboard_analysis(
             "average_security_score": average_security_score,
             "high_risk_scans": high_critical_risk_scan_count,
             "high_critical_risk_scan_count": high_critical_risk_scan_count,
+            "total_email_analyses": total_email_analyses,
+            "suspicious_email_count": suspicious_email_count,
+            "high_confidence_email_count": high_confidence_email_count,
+            "email_links_reviewed": email_links_reviewed,
+            "email_attachments_reviewed": email_attachments_reviewed,
         },
         "distributions": {
             "security_ratings": rating_distribution,
             "risk_levels": risk_level_distribution,
             "scan_status": scan_status_distribution,
+            "email_verdicts": email_verdict_distribution,
         },
     }
 
@@ -1231,3 +1480,72 @@ def delete_admin_user(
         "deleted_user_id": user_id,
         "retained_scan_records": scan_count,
     }
+
+# === SecureSight360 Admin Email Analyses API START ===
+
+@router.get(
+    "/email-analyses",
+    response_model=list[dict[str, Any]],
+    status_code=status.HTTP_200_OK,
+    summary="List all email analyses for admin oversight",
+)
+def list_admin_email_analyses(
+    limit: int = 200,
+    db: Session = Depends(get_db),
+    _: AuthenticatedUser = Depends(require_admin_user),
+) -> list[dict[str, Any]]:
+    safe_limit = max(1, min(int(limit), 500))
+
+    if not _table_exists(db, "email_analyses"):
+        return []
+
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                id,
+                user_id,
+                user_email,
+                user_full_name,
+                subject_preview,
+                sender_preview,
+                verdict,
+                confidence,
+                evidence_strength,
+                summary,
+                links_count,
+                attachments_count,
+                headers_provided,
+                analyzer_version,
+                created_at
+            FROM email_analyses
+            ORDER BY created_at DESC, id DESC
+            LIMIT :limit
+            """
+        ),
+        {"limit": safe_limit},
+    ).mappings().all()
+
+    return [
+        {
+            "id": row["id"],
+            "user_id": row["user_id"],
+            "user_email": row["user_email"],
+            "user_full_name": row["user_full_name"],
+            "subject_preview": row["subject_preview"],
+            "sender_preview": row["sender_preview"],
+            "verdict": row["verdict"],
+            "confidence": row["confidence"],
+            "evidence_strength": row["evidence_strength"],
+            "summary": row["summary"],
+            "links_count": int(row["links_count"] or 0),
+            "attachments_count": int(row["attachments_count"] or 0),
+            "headers_provided": bool(row["headers_provided"]),
+            "analyzer_version": row["analyzer_version"],
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]
+
+# === SecureSight360 Admin Email Analyses API END ===
+

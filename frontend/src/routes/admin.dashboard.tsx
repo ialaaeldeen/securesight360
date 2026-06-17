@@ -1,35 +1,36 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
   BarChart3,
   CheckCircle2,
-  Crown,
+  Globe2,
+  Inbox,
   ListChecks,
-  ShieldAlert,
+  Mail,
   ShieldCheck,
-  Target,
-  UserCheck,
-  UserX,
   Users as UsersIcon,
-  XCircle,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
 
+export const Route = createFileRoute("/admin/dashboard")({
+  component: AdminDashboard,
+});
+
 type DistributionInput =
   | Record<string, number>
-  | Array<{ label?: string; name?: string; key?: string; value?: number; count?: number }>
+  | Array<{ label?: string; name?: string; key?: string; value?: number; count?: number; total?: number }>
   | null
   | undefined;
 
 interface ScanRow {
   id?: number | string;
-  target?: string;
-  target_url?: string;
-  url?: string;
-  status?: string;
+  target?: string | null;
+  target_url?: string | null;
+  url?: string | null;
+  status?: string | null;
   security_score?: number | null;
   average_security_score?: number | null;
   grade?: string | null;
@@ -40,16 +41,33 @@ interface ScanRow {
   completed_at?: string | null;
   user_email?: string | null;
   user_full_name?: string | null;
-  scan_count?: number;
+}
+
+interface EmailAnalysisRow {
+  id?: number | string;
+  user_id?: number | string | null;
+  user_email?: string | null;
+  user_full_name?: string | null;
+  subject_preview?: string | null;
+  sender_preview?: string | null;
+  verdict?: string | null;
+  confidence?: string | null;
+  evidence_strength?: string | null;
+  summary?: string | null;
+  links_count?: number | null;
+  attachments_count?: number | null;
+  headers_provided?: boolean | null;
+  created_at?: string | null;
 }
 
 interface ActiveUserRow {
   id?: number | string;
   email?: string | null;
   full_name?: string | null;
-  role?: string | null;
   scan_count?: number;
   total_scans?: number;
+  email_analysis_count?: number;
+  total_email_analyses?: number;
 }
 
 interface DashboardAnalysis {
@@ -58,194 +76,119 @@ interface DashboardAnalysis {
   inactive_users?: number;
   total_admins?: number;
   active_admins?: number;
+
   total_scans?: number;
   completed_scans?: number;
   failed_scans?: number;
   average_security_score?: number | null;
   high_critical_risk_scan_count?: number;
   high_risk_scans?: number;
+
+  total_email_analyses?: number;
+  suspicious_email_count?: number;
+  high_confidence_email_count?: number;
+  email_links_reviewed?: number;
+  email_attachments_reviewed?: number;
+  email_headers_provided?: number;
+
   security_rating_distribution?: DistributionInput;
   rating_distribution?: DistributionInput;
   risk_level_distribution?: DistributionInput;
   scan_status_distribution?: DistributionInput;
   status_distribution?: DistributionInput;
+  email_verdict_distribution?: DistributionInput;
+
   recent_scans?: ScanRow[];
+  recent_email_analyses?: EmailAnalysisRow[];
   riskiest_targets?: ScanRow[];
   most_active_users?: ActiveUserRow[];
-  [key: string]: unknown;
+  most_active_email_users?: ActiveUserRow[];
 }
 
-interface DistributionItem {
+interface NormalizedDistribution {
   label: string;
   value: number;
 }
 
-export const Route = createFileRoute("/admin/dashboard")({
-  component: AdminDashboard,
-});
-
-function numberValue(value: unknown, fallback = 0): number {
-  const parsed = Number(value);
-
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-
-  return parsed;
-}
-
 function formatNumber(value: unknown): string {
-  const parsed = Number(value);
-
-  if (!Number.isFinite(parsed)) {
-    return "0";
-  }
-
-  return parsed.toLocaleString();
+  const number = Number(value ?? 0);
+  if (!Number.isFinite(number)) return "0";
+  return new Intl.NumberFormat().format(number);
 }
 
 function formatScore(value: unknown): string {
-  const parsed = Number(value);
-
-  if (!Number.isFinite(parsed)) {
-    return "—";
-  }
-
-  return `${Math.round(parsed)}/100`;
+  if (value === null || value === undefined || value === "") return "—";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "—";
+  return `${Math.round(number)}/100`;
 }
 
-function formatDate(value: unknown): string {
-  if (!value) {
-    return "—";
-  }
+function formatDate(value?: string | null): string {
+  if (!value) return "—";
 
-  const date = new Date(String(value));
+  const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return String(value);
-  }
+  if (Number.isNaN(date.getTime())) return value;
 
-  return date.toLocaleString();
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }
 
-function cleanLabel(value: unknown): string {
-  const raw = String(value || "Unknown").trim();
-
-  if (!raw) {
-    return "Unknown";
-  }
-
-  return raw
-    .replace(/_/g, " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function getTarget(row: ScanRow): string {
-  return String(row.target_url || row.target || row.url || "Unknown target");
-}
-
-function getRating(row: ScanRow): string {
-  return cleanLabel(row.security_rating || row.grade || "Unrated");
-}
-
-function getRisk(row: ScanRow): string {
-  return cleanLabel(row.risk_level || "Unknown");
-}
-
-function getScanDate(row: ScanRow): string {
-  return formatDate(row.created_at || row.completed_at || row.started_at);
-}
-
-function normalizeDistribution(input: DistributionInput): DistributionItem[] {
-  if (!input) {
-    return [];
-  }
-
-  const merged = new Map<string, number>();
-
-  const addItem = (labelValue: unknown, numericValue: unknown) => {
-    const label = cleanLabel(labelValue);
-    const value = numberValue(numericValue);
-
-    if (value <= 0) {
-      return;
-    }
-
-    merged.set(label, (merged.get(label) ?? 0) + value);
-  };
+function normalizeDistribution(input: DistributionInput): NormalizedDistribution[] {
+  if (!input) return [];
 
   if (Array.isArray(input)) {
-    input.forEach((item) => {
-      addItem(item.label || item.name || item.key || "Unknown", item.value ?? item.count);
-    });
-  } else {
-    Object.entries(input).forEach(([label, value]) => {
-      addItem(label, value);
-    });
+    return input
+      .map((item) => ({
+        label: String(item.label ?? item.name ?? item.key ?? "Unknown"),
+        value: Number(item.value ?? item.count ?? item.total ?? 0),
+      }))
+      .filter((item) => item.value > 0);
   }
 
-  return Array.from(merged.entries())
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value);
+  return Object.entries(input)
+    .map(([label, value]) => ({
+      label,
+      value: Number(value ?? 0),
+    }))
+    .filter((item) => item.value > 0);
 }
 
-function statusTone(value: unknown): string {
-  const normalized = String(value || "").toLowerCase();
-
-  if (normalized.includes("complete")) {
-    return "border-success/30 bg-success/10 text-success";
-  }
-
-  if (normalized.includes("fail") || normalized.includes("error")) {
-    return "border-destructive/30 bg-destructive/10 text-destructive";
-  }
-
-  return "border-accent-blue/30 bg-accent-blue/10 text-accent-blue";
+function isSuspiciousVerdict(verdict?: string | null): boolean {
+  const value = String(verdict || "").toLowerCase();
+  if (!value) return false;
+  return !value.includes("safe") && !value.includes("no obvious threat");
 }
 
-function ratingTone(value: unknown): string {
-  const normalized = String(value || "").toLowerCase();
+function toneForVerdict(verdict?: string | null): string {
+  if (!isSuspiciousVerdict(verdict)) return "border-green-800/60 bg-green-950/40 text-green-300";
 
-  if (normalized.includes("excellent") || normalized.includes("strong")) {
-    return "border-success/30 bg-success/10 text-success";
+  const value = String(verdict || "").toLowerCase();
+
+  if (value.includes("malicious") || value.includes("credential") || value.includes("fraud")) {
+    return "border-red-800/60 bg-red-950/40 text-red-300";
   }
 
-  if (normalized.includes("moderate")) {
-    return "border-warning/30 bg-warning/10 text-warning";
-  }
-
-  if (normalized.includes("weak") || normalized.includes("critical")) {
-    return "border-destructive/30 bg-destructive/10 text-destructive";
-  }
-
-  return "border-white/10 bg-white/5 text-muted-foreground";
+  return "border-yellow-800/60 bg-yellow-950/40 text-yellow-300";
 }
 
-function riskTone(value: unknown): string {
-  const normalized = String(value || "").toLowerCase();
+function riskTone(value?: string | null): string {
+  const risk = String(value || "").toLowerCase();
 
-  if (normalized.includes("critical") || normalized.includes("high")) {
-    return "border-destructive/30 bg-destructive/10 text-destructive";
-  }
-
-  if (normalized.includes("medium") || normalized.includes("moderate")) {
-    return "border-warning/30 bg-warning/10 text-warning";
-  }
-
-  if (normalized.includes("low")) {
-    return "border-success/30 bg-success/10 text-success";
-  }
-
-  return "border-white/10 bg-white/5 text-muted-foreground";
+  if (risk.includes("critical")) return "text-danger";
+  if (risk.includes("high")) return "text-warning";
+  if (risk.includes("medium") || risk.includes("moderate")) return "text-warning";
+  return "text-success";
 }
 
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-8 text-center text-sm text-muted-foreground">
-      {message}
-    </div>
-  );
+function targetOf(scan: ScanRow): string {
+  return scan.target || scan.target_url || scan.url || "Unknown target";
+}
+
+function scanDate(scan: ScanRow): string {
+  return formatDate(scan.created_at || scan.completed_at || scan.started_at);
 }
 
 function KpiCard({
@@ -253,39 +196,36 @@ function KpiCard({
   value,
   helper,
   icon: Icon,
-  tone,
+  tone = "text-cyan",
   loading,
 }: {
   label: string;
   value: string;
-  helper?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  tone: string;
+  helper: string;
+  icon: any;
+  tone?: string;
   loading: boolean;
 }) {
   return (
-    <div className="glass rounded-2xl p-5">
+    <section className="glass rounded-2xl p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
             {label}
           </div>
-          <div className={`mt-3 text-3xl font-semibold ${tone}`}>
+
+          <div className={`mt-4 text-3xl font-semibold ${tone}`}>
             {loading ? "…" : value}
           </div>
+
+          <p className="mt-3 text-sm text-muted-foreground">{helper}</p>
         </div>
 
-        <div className="rounded-xl border border-white/10 bg-white/5 p-2">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border bg-secondary/60">
           <Icon className={`h-5 w-5 ${tone}`} />
         </div>
       </div>
-
-      {helper && (
-        <div className="mt-3 text-xs text-muted-foreground">
-          {helper}
-        </div>
-      )}
-    </div>
+    </section>
   );
 }
 
@@ -296,12 +236,9 @@ function DistributionCard({
 }: {
   title: string;
   description: string;
-  items: DistributionItem[];
+  items: NormalizedDistribution[];
 }) {
-  const total = useMemo(
-    () => items.reduce((sum, item) => sum + item.value, 0),
-    [items],
-  );
+  const total = items.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <section className="glass rounded-2xl p-5">
@@ -310,19 +247,20 @@ function DistributionCard({
           <h2 className="text-base font-semibold">{title}</h2>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
+
         <BarChart3 className="h-5 w-5 text-accent-blue" />
       </div>
 
       {items.length === 0 ? (
-        <EmptyState message="No distribution data available yet." />
+        <EmptyState message="No data available yet." />
       ) : (
         <div className="space-y-4">
-          {items.map((item) => {
-            const percentage = total > 0 ? Math.round((item.value / total) * 100) : 0;
+          {items.slice(0, 6).map((item) => {
+            const percentage = total ? Math.round((item.value / total) * 100) : 0;
 
             return (
               <div key={item.label} className="space-y-2">
-                <div className="flex items-center justify-between gap-4 text-sm">
+                <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="font-medium">{item.label}</span>
                   <span className="text-muted-foreground">
                     {formatNumber(item.value)} · {percentage}%
@@ -344,6 +282,220 @@ function DistributionCard({
   );
 }
 
+function RecentWebsiteScans({ scans }: { scans: ScanRow[] }) {
+  return (
+    <section className="glass rounded-2xl p-5">
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-base font-semibold">Recent Website Scans</h2>
+          <p className="text-xs text-muted-foreground">
+            Latest authorized website assessments across users.
+          </p>
+        </div>
+
+        <Globe2 className="h-5 w-5 text-accent-blue" />
+      </div>
+
+      {scans.length === 0 ? (
+        <EmptyState message="No recent website scans available yet." />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead className="text-xs uppercase tracking-wider text-muted-foreground">
+              <tr className="border-b border-border">
+                <th className="py-3 pr-4 text-left">Target</th>
+                <th className="py-3 pr-4 text-left">User</th>
+                <th className="py-3 pr-4 text-left">Score</th>
+                <th className="py-3 pr-4 text-left">Risk</th>
+                <th className="py-3 text-left">When</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {scans.slice(0, 6).map((scan, index) => (
+                <tr key={`${scan.id ?? index}`} className="border-b border-border/60 last:border-0">
+                  <td className="py-3 pr-4 font-medium">{targetOf(scan)}</td>
+                  <td className="py-3 pr-4 text-muted-foreground">
+                    {scan.user_email || scan.user_full_name || "—"}
+                  </td>
+                  <td className="py-3 pr-4">{formatScore(scan.security_score)}</td>
+                  <td className={`py-3 pr-4 font-medium ${riskTone(scan.risk_level)}`}>
+                    {scan.risk_level || scan.grade || scan.security_rating || "—"}
+                  </td>
+                  <td className="py-3 text-muted-foreground">{scanDate(scan)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function RecentEmailAnalyses({ items }: { items: EmailAnalysisRow[] }) {
+  return (
+    <section className="glass rounded-2xl p-5">
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-base font-semibold">Recent Email Analyses</h2>
+          <p className="text-xs text-muted-foreground">
+            Latest AI Email Threat Analyzer activity across users.
+          </p>
+        </div>
+
+        <Mail className="h-5 w-5 text-cyan" />
+      </div>
+
+      {items.length === 0 ? (
+        <EmptyState message="No email analyses available yet." />
+      ) : (
+        <div className="space-y-3">
+          {items.slice(0, 6).map((item, index) => (
+            <div
+              key={`${item.id ?? index}`}
+              className="rounded-xl border border-border bg-secondary/30 p-4"
+            >
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">
+                    {item.subject_preview || "No subject provided"}
+                  </div>
+
+                  <div className="mt-1 truncate text-xs text-muted-foreground">
+                    {item.user_email || "Unknown user"} · {item.sender_preview || "No sender provided"}
+                  </div>
+
+                  <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                    {item.summary || "No summary saved."}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <span
+                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${toneForVerdict(
+                      item.verdict,
+                    )}`}
+                  >
+                    {item.verdict || "Unknown"}
+                  </span>
+
+                  <span className="rounded-full border border-border bg-background/40 px-3 py-1 text-xs text-muted-foreground">
+                    {item.confidence || "—"} confidence
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                <span>{item.links_count ?? 0} link(s)</span>
+                <span>{item.attachments_count ?? 0} attachment(s)</span>
+                <span>Headers: {item.headers_provided ? "Provided" : "Not provided"}</span>
+                <span>{formatDate(item.created_at)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ActiveUsersPanel({
+  websiteUsers,
+  emailUsers,
+}: {
+  websiteUsers: ActiveUserRow[];
+  emailUsers: ActiveUserRow[];
+}) {
+  return (
+    <section className="glass rounded-2xl p-5">
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-base font-semibold">Most Active Users</h2>
+          <p className="text-xs text-muted-foreground">
+            User activity across website scans and email analyses.
+          </p>
+        </div>
+
+        <UsersIcon className="h-5 w-5 text-cyan" />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <UserActivityList
+          title="Website scanning"
+          emptyText="No website scan user activity yet."
+          users={websiteUsers}
+          countKey="scan_count"
+          fallbackKey="total_scans"
+        />
+
+        <UserActivityList
+          title="Email analysis"
+          emptyText="No email analysis user activity yet."
+          users={emailUsers}
+          countKey="email_analysis_count"
+          fallbackKey="total_email_analyses"
+        />
+      </div>
+    </section>
+  );
+}
+
+function UserActivityList({
+  title,
+  users,
+  countKey,
+  fallbackKey,
+  emptyText,
+}: {
+  title: string;
+  users: ActiveUserRow[];
+  countKey: keyof ActiveUserRow;
+  fallbackKey: keyof ActiveUserRow;
+  emptyText: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-secondary/30 p-4">
+      <div className="mb-3 text-sm font-semibold">{title}</div>
+
+      {users.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{emptyText}</p>
+      ) : (
+        <div className="space-y-3">
+          {users.slice(0, 5).map((user, index) => {
+            const count = Number(user[countKey] ?? user[fallbackKey] ?? 0);
+
+            return (
+              <div key={`${user.id ?? user.email ?? index}`} className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">
+                    {user.full_name || user.email || "Unknown user"}
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {user.email || "No email"}
+                  </div>
+                </div>
+
+                <div className="rounded-full border border-border bg-background/40 px-3 py-1 text-xs text-muted-foreground">
+                  {formatNumber(count)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border bg-secondary/30 p-5 text-sm text-muted-foreground">
+      {message}
+    </div>
+  );
+}
+
 function AdminDashboard() {
   const [analysis, setAnalysis] = useState<DashboardAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -352,7 +504,9 @@ function AdminDashboard() {
   useEffect(() => {
     let isMounted = true;
 
-    (async () => {
+    async function loadDashboard() {
+      setLoading(true);
+
       try {
         const data = await apiFetch<DashboardAnalysis>("/api/v1/admin/dashboard/analysis");
 
@@ -360,42 +514,45 @@ function AdminDashboard() {
           setAnalysis(data || {});
           setError(null);
         }
-      } catch (e: any) {
+      } catch (err: any) {
         if (isMounted) {
-          setError(e?.message || "Failed to load admin dashboard analysis.");
+          setError(err?.message || "Failed to load admin dashboard analysis.");
         }
       } finally {
         if (isMounted) {
           setLoading(false);
         }
       }
-    })();
+    }
+
+    void loadDashboard();
 
     return () => {
       isMounted = false;
     };
   }, []);
 
+  const highCriticalCount =
+    analysis?.high_critical_risk_scan_count ?? analysis?.high_risk_scans ?? 0;
+
   const securityRatingDistribution = normalizeDistribution(
     analysis?.security_rating_distribution || analysis?.rating_distribution,
   );
 
-  const riskLevelDistribution = normalizeDistribution(analysis?.risk_level_distribution);
-
-  const scanStatusDistribution = normalizeDistribution(
-    analysis?.scan_status_distribution || analysis?.status_distribution,
-  );
+  const emailVerdictDistribution = normalizeDistribution(analysis?.email_verdict_distribution);
 
   const recentScans = Array.isArray(analysis?.recent_scans) ? analysis.recent_scans : [];
-  const riskiestTargets = Array.isArray(analysis?.riskiest_targets)
-    ? analysis.riskiest_targets
+  const recentEmailAnalyses = Array.isArray(analysis?.recent_email_analyses)
+    ? analysis.recent_email_analyses
     : [];
-  const mostActiveUsers = Array.isArray(analysis?.most_active_users)
+
+  const mostActiveWebsiteUsers = Array.isArray(analysis?.most_active_users)
     ? analysis.most_active_users
     : [];
 
-  const highCriticalCount =
-    analysis?.high_critical_risk_scan_count ?? analysis?.high_risk_scans ?? 0;
+  const mostActiveEmailUsers = Array.isArray(analysis?.most_active_email_users)
+    ? analysis.most_active_email_users
+    : [];
 
   const cards = [
     {
@@ -408,51 +565,43 @@ function AdminDashboard() {
       tone: "text-cyan",
     },
     {
-      label: "Active Users",
-      value: formatNumber(analysis?.active_users),
-      helper: "Currently enabled accounts",
-      icon: UserCheck,
-      tone: "text-success",
-    },
-    {
-      label: "Inactive Users",
-      value: formatNumber(analysis?.inactive_users),
-      helper: "Disabled or removed from access",
-      icon: UserX,
-      tone: "text-warning",
-    },
-    {
-      label: "Admins",
-      value: formatNumber(analysis?.total_admins),
-      helper: `${formatNumber(analysis?.active_admins)} active admins`,
-      icon: Crown,
-      tone: "text-accent-blue",
-    },
-    {
-      label: "Total Scans",
+      label: "Website Scans",
       value: formatNumber(analysis?.total_scans),
-      helper: `${formatNumber(analysis?.completed_scans)} completed`,
-      icon: ListChecks,
+      helper: `${formatNumber(analysis?.completed_scans)} completed · ${formatNumber(
+        highCriticalCount,
+      )} high/critical`,
+      icon: Globe2,
       tone: "text-accent-blue",
     },
     {
-      label: "Failed Scans",
-      value: formatNumber(analysis?.failed_scans),
-      helper: "Scans requiring review",
-      icon: XCircle,
-      tone: "text-destructive",
+      label: "Email Analyses",
+      value: formatNumber(analysis?.total_email_analyses),
+      helper: `${formatNumber(analysis?.suspicious_email_count)} suspicious email result(s)`,
+      icon: Mail,
+      tone: "text-cyan",
     },
     {
-      label: "Average Score",
-      value: formatScore(analysis?.average_security_score),
-      helper: "Average website security score",
+      label: "High Confidence Email",
+      value: formatNumber(analysis?.high_confidence_email_count),
+      helper: `${formatNumber(analysis?.email_links_reviewed)} links · ${formatNumber(
+        analysis?.email_attachments_reviewed,
+      )} attachments reviewed`,
       icon: ShieldCheck,
       tone: "text-success",
     },
     {
-      label: "High/Critical Risk",
-      value: formatNumber(highCriticalCount),
-      helper: "Priority scan results",
+      label: "Average Website Score",
+      value: formatScore(analysis?.average_security_score),
+      helper: "Average score across website scan history",
+      icon: Activity,
+      tone: "text-success",
+    },
+    {
+      label: "Priority Security Items",
+      value: formatNumber(
+        Number(highCriticalCount || 0) + Number(analysis?.suspicious_email_count || 0),
+      ),
+      helper: "Website high/critical + suspicious email results",
       icon: AlertTriangle,
       tone: "text-warning",
     },
@@ -462,11 +611,17 @@ function AdminDashboard() {
     <div className="space-y-6">
       <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Admin Dashboard Analysis
+          <div className="inline-flex items-center gap-2 rounded-full border border-cyan/25 bg-cyan/10 px-3 py-1 text-xs font-semibold text-cyan">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Unified Admin Security Console
+          </div>
+
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">
+            Admin Security Overview
           </h1>
+
           <p className="text-sm text-muted-foreground">
-            Security, user, and scan intelligence from live SecureSight360 backend data.
+            Website scanner activity, AI email threat analysis, and user security visibility from live SecureSight360 backend data.
           </p>
         </div>
 
@@ -481,187 +636,71 @@ function AdminDashboard() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => (
           <KpiCard key={card.label} {...card} loading={loading} />
         ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-4 xl:grid-cols-2">
         <DistributionCard
-          title="Security Rating Distribution"
-          description="Professional rating split across completed scans."
+          title="Website Security Rating Distribution"
+          description="Professional rating split across completed website scans."
           items={securityRatingDistribution}
         />
 
         <DistributionCard
-          title="Risk Level Distribution"
-          description="Risk exposure view across saved scan records."
-          items={riskLevelDistribution}
-        />
-
-        <DistributionCard
-          title="Scan Status Distribution"
-          description="Operational status breakdown for scan processing."
-          items={scanStatusDistribution}
+          title="Email Verdict Distribution"
+          description="AI Email Threat Analyzer verdicts across saved analyses."
+          items={emailVerdictDistribution}
         />
       </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <RecentWebsiteScans scans={recentScans} />
+        <RecentEmailAnalyses items={recentEmailAnalyses} />
+      </div>
+
+      <ActiveUsersPanel
+        websiteUsers={mostActiveWebsiteUsers}
+        emailUsers={mostActiveEmailUsers}
+      />
 
       <section className="glass rounded-2xl p-5">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold">Recent Scans</h2>
+            <h2 className="text-base font-semibold">Admin Notes</h2>
             <p className="text-xs text-muted-foreground">
-              Latest assessment records retained for operational visibility.
+              Simple operational interpretation for the current admin view.
             </p>
           </div>
-          <Activity className="h-5 w-5 text-accent-blue" />
+
+          <CheckCircle2 className="h-5 w-5 text-success" />
         </div>
 
-        {recentScans.length === 0 ? (
-          <EmptyState message="No recent scans available yet." />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-white/10 text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="py-3 pr-4 font-medium">Target</th>
-                  <th className="py-3 pr-4 font-medium">User</th>
-                  <th className="py-3 pr-4 font-medium">Status</th>
-                  <th className="py-3 pr-4 font-medium">Score</th>
-                  <th className="py-3 pr-4 font-medium">Security Rating</th>
-                  <th className="py-3 pr-4 font-medium">Risk</th>
-                  <th className="py-3 font-medium">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentScans.map((scan, index) => (
-                  <tr key={`${scan.id || getTarget(scan)}-${index}`} className="border-b border-white/5">
-                    <td className="py-3 pr-4 font-medium">{getTarget(scan)}</td>
-                    <td className="py-3 pr-4 text-muted-foreground">
-                      {scan.user_email || scan.user_full_name || "—"}
-                    </td>
-                    <td className="py-3 pr-4">
-                      <span className={`rounded-full border px-2.5 py-1 text-xs ${statusTone(scan.status)}`}>
-                        {cleanLabel(scan.status || "Unknown")}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4">{formatScore(scan.security_score)}</td>
-                    <td className="py-3 pr-4">
-                      <span className={`rounded-full border px-2.5 py-1 text-xs ${ratingTone(getRating(scan))}`}>
-                        {getRating(scan)}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4">
-                      <span className={`rounded-full border px-2.5 py-1 text-xs ${riskTone(getRisk(scan))}`}>
-                        {getRisk(scan)}
-                      </span>
-                    </td>
-                    <td className="py-3 text-muted-foreground">{getScanDate(scan)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-xl border border-border bg-secondary/30 p-4">
+            <div className="text-sm font-semibold">Website posture</div>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              Continue using scan history and reports for full website evidence. This dashboard only summarizes activity.
+            </p>
           </div>
-        )}
+
+          <div className="rounded-xl border border-border bg-secondary/30 p-4">
+            <div className="text-sm font-semibold">Email threats</div>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              Suspicious email verdicts help admins see phishing activity without exposing full mailbox content.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-secondary/30 p-4">
+            <div className="text-sm font-semibold">User oversight</div>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              User management remains separate so admin actions stay controlled and auditable.
+            </p>
+          </div>
+        </div>
       </section>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <section className="glass rounded-2xl p-5">
-          <div className="mb-5 flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-base font-semibold">Riskiest Targets</h2>
-              <p className="text-xs text-muted-foreground">
-                Targets that should be reviewed first based on risk and score.
-              </p>
-            </div>
-            <ShieldAlert className="h-5 w-5 text-warning" />
-          </div>
-
-          {riskiestTargets.length === 0 ? (
-            <EmptyState message="No risky targets available yet." />
-          ) : (
-            <div className="space-y-3">
-              {riskiestTargets.map((target, index) => (
-                <div
-                  key={`${getTarget(target)}-${index}`}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="font-medium">{getTarget(target)}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {target.user_email || target.user_full_name || "No owner recorded"}
-                      </div>
-                    </div>
-
-                    <Target className="h-4 w-4 text-warning" />
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs">
-                      Score: {formatScore(target.security_score ?? target.average_security_score)}
-                    </span>
-                    <span className={`rounded-full border px-2.5 py-1 text-xs ${ratingTone(getRating(target))}`}>
-                      {getRating(target)}
-                    </span>
-                    <span className={`rounded-full border px-2.5 py-1 text-xs ${riskTone(getRisk(target))}`}>
-                      {getRisk(target)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="glass rounded-2xl p-5">
-          <div className="mb-5 flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-base font-semibold">Most Active Users</h2>
-              <p className="text-xs text-muted-foreground">
-                Users with the highest number of saved scan records.
-              </p>
-            </div>
-            <CheckCircle2 className="h-5 w-5 text-success" />
-          </div>
-
-          {mostActiveUsers.length === 0 ? (
-            <EmptyState message="No user scan activity available yet." />
-          ) : (
-            <div className="space-y-3">
-              {mostActiveUsers.map((user, index) => {
-                const scanCount = user.scan_count ?? user.total_scans ?? 0;
-
-                return (
-                  <div
-                    key={`${user.id || user.email || index}`}
-                    className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-4"
-                  >
-                    <div>
-                      <div className="font-medium">
-                        {user.full_name || user.email || "Unknown user"}
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {user.email || "No email recorded"}
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-xl font-semibold text-accent-blue">
-                        {formatNumber(scanCount)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        scans
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      </div>
     </div>
   );
 }

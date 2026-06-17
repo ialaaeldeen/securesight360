@@ -6,6 +6,7 @@ import {
 import { useTheme } from "@/lib/theme";
 import { useI18n, LANG_META, type Lang } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
+import { canUseWebsiteFeatures } from "@/lib/access";
 
 interface Props {
   onLogout: () => void;
@@ -16,6 +17,7 @@ export function Settings({ onLogout }: Props) {
   const { theme, setTheme } = useTheme();
   const { lang, setLang } = useI18n();
   const { user, refresh } = useAuth();
+  const canUseWebsite = canUseWebsiteFeatures(user);
   const [tab, setTab] = useState<"profile" | "appearance" | "security" | "scanner" | "notifications" | "data">("profile");
   const [saved, setSaved] = useState(false);
 
@@ -23,9 +25,15 @@ export function Settings({ onLogout }: Props) {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (!canUseWebsite && tab === "scanner") {
+      setTab("profile");
+    }
+  }, [canUseWebsite, tab]);
+
   const email = user?.email?.trim() ?? "";
   const name = user?.full_name?.trim() || email.split("@")[0] || "";
-  const companyDomain = user?.company_domain?.trim() || deriveEmailDomain(email);
+  const companyDomain = canUseWebsite ? (user?.company_domain?.trim() || deriveEmailDomain(email)) : "";
   const org = companyDomain ? organizationFromDomain(companyDomain) : "";
   const registeredAt = user?.created_at ? new Date(user.created_at).toLocaleString() : "";
 
@@ -42,7 +50,7 @@ export function Settings({ onLogout }: Props) {
   const [weeklyDigest, setWeeklyDigest] = useState(true);
 
   const save = () => {
-    try { localStorage.setItem("cs360-settings", JSON.stringify({ lang, sessionTimeout, defaultProfile, autoSave, concurrent, emailAlerts, criticalOnly, weeklyDigest })); } catch {}
+    try { localStorage.setItem("cs360-settings", JSON.stringify(canUseWebsite ? { lang, sessionTimeout, defaultProfile, autoSave, concurrent, emailAlerts, criticalOnly, weeklyDigest } : { lang, sessionTimeout, emailAlerts, criticalOnly, weeklyDigest })); } catch {}
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
   };
@@ -65,7 +73,7 @@ export function Settings({ onLogout }: Props) {
           <div>
             <div className="text-xs uppercase tracking-wider text-cyan font-medium">Workspace Settings</div>
             <h2 className="text-2xl font-semibold mt-1">Configure your SecureSight360 experience</h2>
-            <p className="text-sm text-muted-foreground mt-1">Profile, appearance, security, scanner defaults, and data controls.</p>
+            <p className="text-sm text-muted-foreground mt-1">{canUseWebsite ? "Profile, appearance, security, scanner defaults, and data controls." : "Profile, appearance, account security, email analysis preferences, and privacy controls."}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -87,7 +95,7 @@ export function Settings({ onLogout }: Props) {
       <div className="grid lg:grid-cols-[240px_1fr] gap-6">
         {/* Side tabs */}
         <nav className="glass rounded-2xl p-2 h-fit">
-          {tabs.map((t) => {
+          {tabs.filter((t) => canUseWebsite || t.id !== "scanner").map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (
@@ -110,13 +118,22 @@ export function Settings({ onLogout }: Props) {
           {tab === "profile" && (
             <Card
               title="Registered account"
-              desc="These details are loaded from your authenticated backend account. Your verified company domain controls which websites this account can scan."
+              desc={canUseWebsite ? "These details are loaded from your authenticated backend account. Your verified company domain controls which websites this account can scan." : "These details are loaded from your authenticated backend account. Personal accounts are configured for AI Email Analyzer and Email Analysis History."}
             >
               <div className="grid md:grid-cols-2 gap-4">
                 <ReadOnlyField label="Registrant name" icon={User} value={name} />
-                <ReadOnlyField label="Work email" icon={Mail} value={email} />
-                <ReadOnlyField label="Organization" icon={Globe} value={org} />
-                <ReadOnlyField label="Verified company domain" icon={Shield} value={companyDomain} />
+                <ReadOnlyField label="Account email" icon={Mail} value={email} />
+                {canUseWebsite ? (
+                  <>
+                    <ReadOnlyField label="Organization" icon={Globe} value={org} />
+                    <ReadOnlyField label="Verified company domain" icon={Shield} value={companyDomain} />
+                  </>
+                ) : (
+                  <>
+                    <ReadOnlyField label="Account type" icon={Mail} value="Personal Email Account" />
+                    <ReadOnlyField label="Available features" icon={Shield} value="AI Email Analyzer and Email Analysis History" />
+                  </>
+                )}
                 <ReadOnlyField
                   label="Registered on"
                   icon={Database}
@@ -211,10 +228,10 @@ export function Settings({ onLogout }: Props) {
           )}
 
           {tab === "notifications" && (
-            <Card title="Notifications" desc="Control how SecureSight360 reaches out.">
-              <Toggle label="Email alerts" desc="Receive an email when a scan completes." checked={emailAlerts} onChange={setEmailAlerts} />
-              <Toggle label="Critical findings only" desc="Mute low/medium severity notifications." checked={criticalOnly} onChange={setCriticalOnly} />
-              <Toggle label="Weekly digest" desc="Sunday summary of all scans and trends." checked={weeklyDigest} onChange={setWeeklyDigest} />
+            <Card title="Notifications" desc={canUseWebsite ? "Control how SecureSight360 reaches out." : "Control email-analysis notifications and reminders."}>
+              <Toggle label="Email alerts" desc={canUseWebsite ? "Receive an email when a scan completes." : "Receive an email when an email analysis is completed."} checked={emailAlerts} onChange={setEmailAlerts} />
+              <Toggle label="Critical findings only" desc={canUseWebsite ? "Mute low/medium severity notifications." : "Notify only when an email appears suspicious, malicious, or credential-theft related."} checked={criticalOnly} onChange={setCriticalOnly} />
+              <Toggle label="Weekly digest" desc={canUseWebsite ? "Sunday summary of all scans and trends." : "Weekly summary of submitted email analyses and threat patterns."} checked={weeklyDigest} onChange={setWeeklyDigest} />
             </Card>
           )}
 
@@ -222,7 +239,7 @@ export function Settings({ onLogout }: Props) {
             <>
        <Card title="Danger zone" desc="Irreversible workspace actions." danger>
                 <button className="inline-flex items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 text-danger px-4 py-2 text-sm hover:bg-danger/20">
-                  <Trash2 className="h-4 w-4" /> Delete all scan history
+                  <Trash2 className="h-4 w-4" /> {canUseWebsite ? "Delete all scan history" : "Delete all email analysis history"}
                 </button>
               </Card>
             </>

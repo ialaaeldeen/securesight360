@@ -5,13 +5,16 @@ import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { Overview } from "@/components/Overview";
 import { Scanner } from "@/components/Scanner";
+import { EmailAnalyzer } from "@/components/EmailAnalyzer";
 import { Reports } from "@/components/Reports";
 import { Auth } from "@/components/Auth";
 import { Settings } from "@/components/Settings";
 import { History } from "@/components/History";
+import { EmailHistory } from "@/components/EmailHistory";
 import { Privacy } from "@/components/Privacy";
 import { ThemeProvider } from "@/lib/theme";
 import { useAuth } from "@/lib/auth";
+import { canUseWebsiteFeatures } from "@/lib/access";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -20,7 +23,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Professional cybersecurity assessment platform: authorized website scans, explainable risk scoring, and client-friendly reports.",
+          "Professional cybersecurity platform for authorized website security posture assessment, evidence-backed reporting, and planned AI-assisted suspicious email analysis.",
       },
       {
         property: "og:title",
@@ -29,7 +32,7 @@ export const Route = createFileRoute("/")({
       {
         property: "og:description",
         content:
-          "Authorized website security scans with an explainable risk score and client-ready reports.",
+          "Authorized website security posture assessment with evidence-ready reports and planned AI-assisted email threat analysis.",
       },
     ],
   }),
@@ -41,7 +44,8 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { isAuthenticated, isAdmin, logout: authLogout, loading } = useAuth();
+  const { isAuthenticated, isAdmin, logout: authLogout, loading, user } = useAuth();
+  const canUseWebsite = canUseWebsiteFeatures(user);
   const navigate = useNavigate();
 
   const [section, setSection] = useState("overview");
@@ -53,7 +57,21 @@ function Index() {
     }
   }, [loading, isAuthenticated, isAdmin, navigate]);
 
+  // Personal users cannot open scanner/reports UI.
+
+  useEffect(() => {
+    if (!loading && isAuthenticated && !canUseWebsite && ["scanner", "reports"].includes(section)) {
+      historyRef.current = ["overview"];
+      setSection("overview");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [loading, isAuthenticated, canUseWebsite, section]);
+
   const go = (id: string) => {
+    if (!canUseWebsite && ["scanner", "reports"].includes(id)) {
+      id = "overview";
+    }
+
     if (id !== section) {
       historyRef.current.push(id);
       setSection(id);
@@ -117,10 +135,11 @@ function Index() {
             canGoBack={section !== "overview"}
           />
 
-          {section === "overview" && <Overview onLaunch={() => go("scanner")} />}
-          {section === "scanner" && <Scanner onReverify={reverify} />}
-          {section === "reports" && <Reports />}
-          {section === "history" && <History />}
+          {section === "overview" && <Overview onLaunch={() => go(canUseWebsite ? "scanner" : "email")} />}
+          {canUseWebsite && section === "scanner" && <Scanner onReverify={reverify} />}
+          {section === "email" && <EmailAnalyzer />}
+          {canUseWebsite && section === "reports" && <Reports />}
+          {section === "history" && (canUseWebsite ? <History /> : <EmailHistory />)}
           {section === "privacy" && <Privacy />}
           {section === "settings" && (
             <Settings onLogout={logout} onBack={goBack} />
@@ -130,3 +149,4 @@ function Index() {
     </div>
   );
 }
+

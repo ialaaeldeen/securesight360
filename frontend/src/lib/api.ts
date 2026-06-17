@@ -119,6 +119,7 @@ export interface RegisterRequest {
   password: string;
   full_name?: string | null;
   company_name?: string | null;
+  account_type?: "personal" | "business";
 }
 
 export async function loginRequest(
@@ -143,3 +144,120 @@ export async function registerRequest(
 export async function fetchMe(): Promise<BackendUser> {
   return apiFetch<BackendUser>("/api/v1/auth/me");
 }
+export type EmailThreatVerdict =
+  | "Safe / No obvious threat detected"
+  | "Suspicious"
+  | "Malicious"
+  | "Impersonation Attempt"
+  | "Credential Theft Attempt"
+  | "Business Email Compromise Attempt"
+  | "Payment or Invoice Fraud Attempt"
+  | "Link-Based Phishing Attempt"
+  | "Attachment-Based Threat Suspicion";
+
+export type EmailThreatConfidence = "Low" | "Medium" | "High";
+export type EmailEvidenceStrength = "Limited" | "Moderate" | "Strong";
+
+export interface EmailAttachmentInput {
+  file_name: string;
+  content_type?: string | null;
+  size_bytes?: number | null;
+  sha256?: string | null;
+  text_preview?: string | null;
+}
+
+export interface EmailThreatAnalyzeRequest {
+  subject?: string;
+  sender?: string;
+  reply_to?: string | null;
+  body?: string;
+  links?: string[];
+  headers?: string | null;
+  attachments?: EmailAttachmentInput[];
+}
+
+export interface EmailMLSignal {
+  enabled: boolean;
+  model_name: string;
+  predicted_label?: string | null;
+  mapped_verdict: string;
+  confidence: number;
+  phishing_score: number;
+  safe_score: number;
+  signal_strength: "High" | "Medium" | "Low" | "Minimal" | "Unavailable" | string;
+  is_phishing_signal: boolean;
+  explanation: string;
+  raw_scores?: Array<{ label: string; score: number }>;
+  error?: string | null;
+}
+
+export interface EmailThreatCompactResponse {
+  verdict: EmailThreatVerdict;
+  confidence: EmailThreatConfidence;
+  evidence_strength: EmailEvidenceStrength;
+  summary: string;
+  key_indicators: string[];
+  recommended_actions: string[];
+  attachment_alerts: string[];
+  link_alerts?: string[];
+  safety_notes: string[];
+  analyzer_version: string;
+  ml_email_signal?: EmailMLSignal | null;
+}
+
+export interface EmailThreatHistoryItem {
+  id: number;
+  created_at: string;
+  subject_preview?: string | null;
+  sender_preview?: string | null;
+  verdict: EmailThreatVerdict;
+  confidence: EmailThreatConfidence;
+  evidence_strength: EmailEvidenceStrength;
+  summary: string;
+  key_indicators: string[];
+  attachment_alerts: string[];
+  links_count: number;
+  attachments_count: number;
+  headers_provided: boolean;
+  analyzer_version?: string | null;
+  ml_email_signal?: EmailMLSignal | null;
+}
+
+export interface EmailThreatHistoryDetail extends EmailThreatHistoryItem {
+  recommended_actions: string[];
+  safety_notes: string[];
+  ml_email_signal?: EmailMLSignal | null;
+}
+
+export interface EmailThreatHistoryResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  history: EmailThreatHistoryItem[];
+}
+
+export async function analyzeSuspiciousEmail(
+  payload: EmailThreatAnalyzeRequest
+): Promise<EmailThreatCompactResponse> {
+  return apiFetch<EmailThreatCompactResponse>("/api/v1/email/analyze", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchEmailAnalysisHistory(
+  limit = 25,
+  offset = 0
+): Promise<EmailThreatHistoryResponse> {
+  return apiFetch<EmailThreatHistoryResponse>(
+    `/api/v1/email/history/me?limit=${limit}&offset=${offset}`
+  );
+}
+
+export async function fetchEmailAnalysisDetail(
+  id: number
+): Promise<EmailThreatHistoryDetail> {
+  return apiFetch<EmailThreatHistoryDetail>(`/api/v1/email/history/${id}`);
+}
+
+

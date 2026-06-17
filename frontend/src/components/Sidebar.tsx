@@ -12,19 +12,22 @@ import {
   LogOut,
   Scale,
   ShieldCheck,
+  Mail,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
+import { canUseWebsiteFeatures } from "@/lib/access";
 
 const items = [
-  { key: "nav.overview", icon: LayoutDashboard, id: "overview" },
-  { key: "nav.scanner", icon: Globe, id: "scanner" },
-  { key: "nav.reports", icon: FileText, id: "reports" },
-  { key: "nav.history", icon: History, id: "history" },
-  { key: "nav.privacy", icon: Scale, id: "privacy" },
-  { key: "nav.settings", icon: Settings, id: "settings" },
+  { key: "nav.overview", label: "Overview", icon: LayoutDashboard, id: "overview" },
+  { key: "nav.scanner", label: "Website Scanner", icon: Globe, id: "scanner" },
+  { key: "nav.emailAnalyzer", label: "Email Analyzer", icon: Mail, id: "email" },
+  { key: "nav.reports", label: "Reports", icon: FileText, id: "reports" },
+  { key: "nav.history", label: "History", icon: History, id: "history" },
+  { key: "nav.privacy", label: "Privacy", icon: Scale, id: "privacy" },
+  { key: "nav.settings", label: "Settings", icon: Settings, id: "settings" },
 ];
 
 interface Props {
@@ -36,7 +39,8 @@ interface Props {
 export function Sidebar({ active, onSelect, onLogout }: Props) {
   const [open, setOpen] = useState(false);
   const { t } = useI18n();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const canUseWebsite = canUseWebsiteFeatures(user);
 
   const Nav = (
     <aside className="glass flex h-full w-64 2xl:w-72 shrink-0 flex-col rounded-none border-r border-border/70">
@@ -56,9 +60,13 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
       </div>
 
       <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
-        {items.map((it) => {
+        {items
+          .filter((it) => canUseWebsite || !["scanner", "reports"].includes(it.id))
+          .map((it) => {
           const Icon = it.icon;
           const isActive = active === it.id;
+          const translated = t(it.key);
+          const label = translated === it.key ? it.label : translated;
 
           return (
             <button
@@ -78,7 +86,7 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
                   isActive ? "text-cyan" : ""
                 }`}
               />
-              <span>{t(it.key)}</span>
+              <span>{label}</span>
             </button>
           );
         })}
@@ -94,23 +102,25 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
           </Link>
         )}
 
-        <div className="pt-3 mt-3 border-t border-border/70">
-          <button
-            onClick={() => {
-              onSelect("scanner");
-              setOpen(false);
-            }}
-            className="relative flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan hover:brightness-110 transition"
-          >
-            <Radar className="h-4 w-4 shrink-0" />
-            <span className="min-w-0 flex-1 leading-snug">
-              Integrated Website Scanner
-            </span>
-            <span className="ml-auto text-[10px] uppercase tracking-wider bg-black/20 px-1.5 py-0.5 rounded">
-              MVP
-            </span>
-          </button>
-        </div>
+        {canUseWebsite && (
+          <div className="pt-3 mt-3 border-t border-border/70">
+            <button
+              onClick={() => {
+                onSelect("scanner");
+                setOpen(false);
+              }}
+              className="relative flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan hover:brightness-110 transition"
+            >
+              <Radar className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 flex-1 leading-snug">
+                Integrated Website Scanner
+              </span>
+              <span className="ml-auto text-[10px] uppercase tracking-wider bg-black/20 px-1.5 py-0.5 rounded">
+                MVP
+              </span>
+            </button>
+          </div>
+        )}
       </nav>
 
       <div className="mt-auto px-3 pt-3 pb-3 border-t border-border/70 space-y-2">
@@ -129,7 +139,7 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
 
         <div className="text-[11px] text-muted-foreground flex items-center gap-2 px-1">
           <Shield className="h-3.5 w-3.5 shrink-0 text-success" />
-          Safe authorized scanning only
+          {canUseWebsite ? "Safe authorized scanning only" : "Email threat analysis only"}
         </div>
       </div>
     </aside>

@@ -1,5 +1,7 @@
 import { Activity, ShieldCheck, ArrowLeft, User } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
+import { canUseWebsiteFeatures } from "@/lib/access";
 
 interface HeaderProps {
   section: string;
@@ -9,18 +11,30 @@ interface HeaderProps {
 
 export function Header({ section, onBack, canGoBack }: HeaderProps) {
   const { t: tr } = useI18n();
+  const { user } = useAuth();
+  const canUseWebsite = canUseWebsiteFeatures(user);
   const get = (k: string) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
-  const userName = get("cs360-user-name");
-  const userEmail = get("cs360-user-email");
-  const companyName = get("cs360-company-name");
-  const companyDomain = get("cs360-company-domain");
+  const userName = user?.full_name || get("cs360-user-name");
+  const userEmail = user?.email || get("cs360-user-email");
+  const companyName = canUseWebsite ? get("cs360-company-name") : "";
+  const companyDomain = canUseWebsite ? (user?.company_domain || get("cs360-company-domain")) : "";
   const displayName = userName || userEmail.split("@")[0];
   const initials = (userName || userEmail || "?")
     .split(/[\s@.]+/).filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join("");
-  const t = {
-    title: tr(`section.${section}.title`) === `section.${section}.title` ? tr("section.overview.title") : tr(`section.${section}.title`),
-    sub: tr(`section.${section}.sub`) === `section.${section}.sub` ? tr("section.overview.sub") : tr(`section.${section}.sub`),
+  const sectionMeta: Record<string, { title: string; sub: string }> = {
+    overview: {
+      title: tr("section.overview.title") === "section.overview.title" ? "Overview" : tr("section.overview.title"),
+      sub: tr("section.overview.sub") === "section.overview.sub" ? "Security posture overview" : tr("section.overview.sub"),
+    },
+    scanner: { title: "Website Scanner", sub: "Authorized external website security posture assessment." },
+    email: { title: "AI Email Analyzer", sub: "Analyze suspicious emails without opening links or executing attachments." },
+    reports: { title: "Reports", sub: "Evidence-backed website security reports." },
+    history: { title: "History", sub: "Email analyses and website assessment history." },
+    privacy: { title: "Privacy", sub: "Data handling, safe analysis, and authorization rules." },
+    settings: { title: "Settings", sub: "Manage your SecureSight360 session and preferences." },
   };
+
+  const t = sectionMeta[section] || sectionMeta.overview;
   return (
     <header className="glass rounded-xl px-4 py-3 flex items-center justify-between gap-3">
       <div className="flex items-center gap-3 min-w-0">
@@ -77,3 +91,4 @@ export function Header({ section, onBack, canGoBack }: HeaderProps) {
     </header>
   );
 }
+

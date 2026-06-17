@@ -68,6 +68,12 @@ def create_app() -> FastAPI:
 
     cors_origins.extend(
         [
+            # Production frontend/API domains
+            "https://securesight360.com",
+            "https://www.securesight360.com",
+            "https://api.securesight360.com",
+
+            # Local development frontend origins
             "http://localhost:8080",
             "http://127.0.0.1:8080",
             "http://localhost:5173",
@@ -109,4 +115,25 @@ def root():
         "version": "1.0.0",
         "docs": "/docs",
     }
-    
+
+# Warm up the local email ML classifier in the background.
+# This keeps the first user-facing email analysis from paying the full model-load cost.
+@app.on_event("startup")
+def _warm_up_email_ml_classifier_on_startup() -> None:
+    import threading
+
+    def _worker() -> None:
+        try:
+            from app.services.email_ml_classifier import warm_up_email_ml_classifier
+
+            warm_up_email_ml_classifier()
+        except Exception:
+            # ML must never prevent the main SecureSight360 API from starting.
+            pass
+
+    threading.Thread(
+        target=_worker,
+        name="securesight360-email-ml-warmup",
+        daemon=True,
+    ).start()
+

@@ -4,7 +4,6 @@ import {
   Award,
   BarChart3,
   Calendar,
-  CheckCircle,
   Download,
   Eye,
   FileText,
@@ -612,10 +611,9 @@ export function Reports() {
 
       <AssessmentScopeCard compact />
 
-      <section className="grid gap-3 md:grid-cols-3">
+      <section className="grid gap-3 md:grid-cols-2">
         <SummaryTile icon={FileText} label="Total Reports" value={String(reports.length)} />
         <SummaryTile icon={AlertTriangle} label="High/Critical Reports" value={String(highRiskCount)} />
-        <SummaryTile icon={CheckCircle} label="Report Source" value="Backend" />
       </section>
 
       <section className="space-y-4">
@@ -1106,6 +1104,7 @@ function Mini({ v, l, tone }: { v: string; l: string; tone: string }) {
     </div>
   );
 }
+
 
 
 

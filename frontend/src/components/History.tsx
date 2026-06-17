@@ -8,6 +8,7 @@ import {
   History as HistoryIcon,
   Loader2,
   Lock,
+  Mail,
   RefreshCw,
   Search,
   Server,
@@ -16,6 +17,9 @@ import {
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { canUseWebsiteFeatures } from "@/lib/access";
+import { EmailHistory } from "@/components/EmailHistory";
 import { AssessmentScopeCard } from "@/components/AssessmentScopeCard";
 
 type ScanRecord = {
@@ -318,7 +322,7 @@ function rowsOnlyUseful(rows: EvidenceRow[]): EvidenceRow[] {
   return rows.filter(([label, value]) => isUseful(displayValue(value, label)));
 }
 
-export function History() {
+function WebsiteHistoryContent() {
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -520,6 +524,46 @@ export function History() {
   );
 }
 
+export function History() {
+  const [activeTab, setActiveTab] = useState<"email" | "website">("email");
+
+  const tabBase =
+    "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all";
+
+  return (
+    <div className="space-y-5">
+      <div className="glass rounded-2xl p-2 flex flex-col gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={() => setActiveTab("email")}
+          className={`${tabBase} ${
+            activeTab === "email"
+              ? "bg-cyan/10 text-cyan border border-cyan/30"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-transparent"
+          }`}
+        >
+          <Mail className="h-4 w-4" />
+          Email Analyses
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("website")}
+          className={`${tabBase} ${
+            activeTab === "website"
+              ? "bg-cyan/10 text-cyan border border-cyan/30"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60 border border-transparent"
+          }`}
+        >
+          <Globe className="h-4 w-4" />
+          Website Assessments
+        </button>
+      </div>
+
+      {activeTab === "email" ? <EmailHistory /> : <WebsiteHistoryContent />}
+    </div>
+  );
+}
 function HistoryDetailsPanel({
   record,
   detail,
@@ -758,6 +802,7 @@ function Mini({ v, l, tone }: { v: string; l: string; tone: string }) {
     </div>
   );
 }
+
 
 
 

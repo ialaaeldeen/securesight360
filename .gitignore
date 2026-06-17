@@ -106,3 +106,32 @@ backend/WhatsApp Image*.png
 # Local documentation inspection and backup files
 DOCUMENTATION_INSPECTION.txt
 backups/
+
+# SecureSight360 local backup/checkpoint files
+*.bak-*
+*.before_*
+*.STABLE_*
+*.broken_*
+*_inspection.txt
+phase15_*/
+CHECKPOINT_PHASE_*/
+patch_phase*.py
+patch_fix*.py
+
+# Local ML / sandbox / generated test tools
+backend/ml_sandbox/
+backend/tools/
+
+# Environment and local runtime
+backend/.venv/
+frontend/node_modules/
+frontend/dist/
+
+# SecureSight360 generated inspection/log text files
+*inspection*.txt
+*build_error*.txt
+phase15_*.txt
+phase16_*.txt
+phase17_*.txt
+signup_type_flow_inspection.txt
+account_type_retry_inspection.txt

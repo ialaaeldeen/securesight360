@@ -124,6 +124,8 @@ def _enforce_scan_domain_authorization(
     if _is_admin_scan_user(current_user):
         return
 
+    _enforce_business_domain_for_website_features(current_user)
+
     user_domain = _domain_from_email(current_user.email)
     target_hostname = _hostname_from_target_url(target_url)
 
@@ -1301,6 +1303,50 @@ def _has_meaningful_value(value: Any) -> bool:
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
+
+PERSONAL_EMAIL_DOMAINS_FOR_WEBSITE = {
+    "gmail.com",
+    "googlemail.com",
+    "yahoo.com",
+    "ymail.com",
+    "outlook.com",
+    "hotmail.com",
+    "live.com",
+    "icloud.com",
+    "me.com",
+    "aol.com",
+    "proton.me",
+    "protonmail.com",
+}
+
+
+def _is_personal_email_domain_for_website(domain: str) -> bool:
+    return domain.strip().lower() in PERSONAL_EMAIL_DOMAINS_FOR_WEBSITE
+
+
+def _enforce_business_domain_for_website_features(current_user: AuthenticatedUser) -> None:
+    """
+    Personal accounts can use Email Analyzer and Email Analysis History.
+    Website Scanner, Website Reports, and Website Assessment History require
+    a verified business/domain account.
+
+    Admins are exempt because admin accounts may use a personal email address.
+    """
+    if _is_admin_scan_user(current_user):
+        return
+
+
+    user_domain = _domain_from_email(current_user.email)
+
+    if _is_personal_email_domain_for_website(user_domain):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Website assessment features require a verified business domain account. "
+                "Personal accounts can use the AI Email Threat Analyzer and Email Analysis History."
+            ),
+        )
+
 # === SecureSight360 Website Scan History API START ===
 
 
@@ -2314,6 +2360,7 @@ def download_website_scan_pdf_report(
 
 
 # === SecureSight360 Website Scan History API END ===
+
 
 
 
