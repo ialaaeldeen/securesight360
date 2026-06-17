@@ -135,3 +135,7 @@ phase16_*.txt
 phase17_*.txt
 signup_type_flow_inspection.txt
 account_type_retry_inspection.txt
+
+# Vercel local project metadata
+frontend/.vercel/
+.vercel/
