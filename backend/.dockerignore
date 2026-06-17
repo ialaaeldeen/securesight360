@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+data/
+ml_sandbox/
+tools/
+*.bak-*
+*.before_*
+*.STABLE_*
+*.broken_*
+.env
+.env.local
+.env.*.local
