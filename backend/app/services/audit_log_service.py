@@ -7,13 +7,18 @@ from fastapi import Request
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.database.compat import id_primary_key_sql, timestamp_type_sql
+
 
 def ensure_audit_log_table(db: Session) -> None:
+    id_column = id_primary_key_sql(db)
+    timestamp_type = timestamp_type_sql(db)
+
     db.execute(
         text(
-            """
+            f"""
             CREATE TABLE IF NOT EXISTS audit_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {id_column},
                 event_type TEXT NOT NULL,
                 action TEXT,
                 outcome TEXT NOT NULL DEFAULT 'success',
@@ -27,7 +32,7 @@ def ensure_audit_log_table(db: Session) -> None:
                 ip_address TEXT,
                 user_agent TEXT,
                 details_json TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                created_at {timestamp_type} DEFAULT CURRENT_TIMESTAMP
             )
             """
         )

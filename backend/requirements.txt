@@ -37,3 +37,4 @@ torch
 transformers
 safetensors
 huggingface_hub
+psycopg2-binary>=2.9.9,<3.0

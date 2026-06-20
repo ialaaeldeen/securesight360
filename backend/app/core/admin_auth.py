@@ -18,6 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.database.compat import id_primary_key_sql, timestamp_type_sql
 
 security_scheme = HTTPBearer(auto_error=False)
 
@@ -101,19 +102,22 @@ def _get_admin_password() -> str:
 
 
 def ensure_auth_tables(db: Session) -> None:
+    id_column = id_primary_key_sql(db)
+    timestamp_type = timestamp_type_sql(db)
+
     db.execute(
         text(
-            """
+            f"""
             CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {id_column},
                 email VARCHAR(255) NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
                 full_name VARCHAR(255),
                 role VARCHAR(50) NOT NULL DEFAULT 'user',
-                is_active BOOLEAN NOT NULL DEFAULT 1,
-                created_at DATETIME NOT NULL,
-                updated_at DATETIME NOT NULL,
-                last_login_at DATETIME
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at {timestamp_type} NOT NULL,
+                updated_at {timestamp_type} NOT NULL,
+                last_login_at {timestamp_type}
             )
             """
         )

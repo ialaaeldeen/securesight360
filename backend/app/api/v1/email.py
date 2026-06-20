@@ -10,6 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.core.admin_auth import AuthenticatedUser, require_authenticated_user
 from app.database.session import get_db
+from app.database.compat import (
+    boolean_default_sql,
+    id_primary_key_sql,
+    insert_returning_id,
+    timestamp_type_sql,
+)
 from app.schemas.email_threat import (
     EmailThreatAnalysisRequest,
     EmailThreatCompactResponse,
@@ -62,11 +68,15 @@ def _preview(value: str | None, limit: int = 180) -> str | None:
 
 
 def _ensure_email_analyses_table(db: Session) -> None:
+    id_column = id_primary_key_sql(db)
+    timestamp_type = timestamp_type_sql(db)
+    headers_default = boolean_default_sql(db, False)
+
     db.execute(
         text(
-            """
+            f"""
             CREATE TABLE IF NOT EXISTS email_analyses (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {id_column},
                 user_id INTEGER NOT NULL,
                 user_email VARCHAR(255),
                 user_full_name VARCHAR(255),
@@ -86,12 +96,12 @@ def _ensure_email_analyses_table(db: Session) -> None:
 
                 links_count INTEGER DEFAULT 0,
                 attachments_count INTEGER DEFAULT 0,
-                headers_provided BOOLEAN DEFAULT 0,
+                headers_provided BOOLEAN DEFAULT {headers_default},
 
                 analyzer_version VARCHAR(80),
 
-                created_at DATETIME NOT NULL,
-                updated_at DATETIME NOT NULL
+                created_at {timestamp_type} NOT NULL,
+                updated_at {timestamp_type} NOT NULL
             )
             """
         )
@@ -114,7 +124,6 @@ def _ensure_email_analyses_table(db: Session) -> None:
             """
         )
     )
-
 
 
 def _link_alerts_from_analysis(analysis) -> list[str]:
@@ -207,53 +216,52 @@ def _save_email_analysis_history(
 
     now = _utc_now()
 
-    db.execute(
-        text(
-            """
-            INSERT INTO email_analyses (
-                user_id,
-                user_email,
-                user_full_name,
-                subject_preview,
-                sender_preview,
-                verdict,
-                confidence,
-                evidence_strength,
-                summary,
-                key_indicators,
-                recommended_actions,
-                attachment_alerts,
-                safety_notes,
-                links_count,
-                attachments_count,
-                headers_provided,
-                analyzer_version,
-                created_at,
-                updated_at
-            )
-            VALUES (
-                :user_id,
-                :user_email,
-                :user_full_name,
-                :subject_preview,
-                :sender_preview,
-                :verdict,
-                :confidence,
-                :evidence_strength,
-                :summary,
-                :key_indicators,
-                :recommended_actions,
-                :attachment_alerts,
-                :safety_notes,
-                :links_count,
-                :attachments_count,
-                :headers_provided,
-                :analyzer_version,
-                :created_at,
-                :updated_at
-            )
-            """
-        ),
+    analysis_id = insert_returning_id(
+        db,
+        """
+        INSERT INTO email_analyses (
+            user_id,
+            user_email,
+            user_full_name,
+            subject_preview,
+            sender_preview,
+            verdict,
+            confidence,
+            evidence_strength,
+            summary,
+            key_indicators,
+            recommended_actions,
+            attachment_alerts,
+            safety_notes,
+            links_count,
+            attachments_count,
+            headers_provided,
+            analyzer_version,
+            created_at,
+            updated_at
+        )
+        VALUES (
+            :user_id,
+            :user_email,
+            :user_full_name,
+            :subject_preview,
+            :sender_preview,
+            :verdict,
+            :confidence,
+            :evidence_strength,
+            :summary,
+            :key_indicators,
+            :recommended_actions,
+            :attachment_alerts,
+            :safety_notes,
+            :links_count,
+            :attachments_count,
+            :headers_provided,
+            :analyzer_version,
+            :created_at,
+            :updated_at
+        )
+        """,
         {
             "user_id": current_user.id,
             "user_email": current_user.email,
@@ -277,7 +285,6 @@ def _save_email_analysis_history(
         },
     )
 
-    analysis_id = db.execute(text("SELECT last_insert_rowid()")).scalar_one()
     db.commit()
 
     return int(analysis_id)

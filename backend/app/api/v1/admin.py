@@ -15,6 +15,7 @@ from app.core.admin_auth import (
     require_admin_user,
 )
 from app.database.session import get_db
+from app.database.compat import table_columns as db_table_columns, table_exists as db_table_exists
 from app.services.audit_log_service import ensure_audit_log_table, write_audit_log
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -111,28 +112,11 @@ def _refresh_user_row(db: Session, user_id: int) -> dict[str, Any]:
 
 
 def _table_exists(db: Session, table_name: str) -> bool:
-    row = db.execute(
-        text(
-            """
-            SELECT name
-            FROM sqlite_master
-            WHERE type = 'table'
-              AND name = :table_name
-            LIMIT 1
-            """
-        ),
-        {"table_name": table_name},
-    ).first()
-
-    return row is not None
+    return db_table_exists(db, table_name)
 
 
 def _table_columns(db: Session, table_name: str) -> set[str]:
-    if not _table_exists(db, table_name):
-        return set()
-
-    rows = db.execute(text(f"PRAGMA table_info({table_name})")).mappings().all()
-    return {str(row["name"]) for row in rows}
+    return db_table_columns(db, table_name)
 
 
 def _safe_count(
