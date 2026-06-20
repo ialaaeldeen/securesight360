@@ -27,7 +27,7 @@ def init_db() -> None:
     """
 
     try:
-        logger.info("Initializing database: %s", settings.DATABASE_URL)
+        logger.info("Initializing database: %s", engine.url.render_as_string(hide_password=True))
         Base.metadata.create_all(bind=engine)
         logger.info("Database initialized successfully.")
 
