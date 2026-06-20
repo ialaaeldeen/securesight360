@@ -18,23 +18,91 @@ def configure_logging() -> None:
     )
 
 
+def _initialize_database_on_startup() -> None:
+    """
+    Initialize database tables at application startup.
+
+    For the current MVP deployment this keeps Render + Neon PostgreSQL
+    ready without manual database setup. Later, this can be replaced by
+    Alembic migrations as the production schema process.
+    """
+    from app.database.init_db import init_db
+
+    init_db()
+
+
+def _seed_admin_user_on_startup() -> None:
+    """
+    Ensure the configured admin user exists.
+
+    In production, missing admin credentials should fail startup so the
+    deployment is not left without an admin account. In development, the
+    app should still start even if local admin env values are not set.
+    """
+    logger = logging.getLogger(__name__)
+
+    try:
+        from app.core.admin_auth import seed_admin_user
+        from app.database.session import SessionLocal
+
+        with SessionLocal() as db:
+            seed_admin_user(db)
+
+        logger.info("Admin user seed check completed.")
+
+    except RuntimeError as error:
+        if settings.APP_ENV == "production":
+            logger.exception("Admin user seed failed in production.")
+            raise
+
+        logger.warning("Admin user seed skipped in non-production: %s", error)
+
+
+def _warm_up_email_ml_classifier_on_startup() -> None:
+    """
+    Warm up the local email ML classifier in the background.
+
+    ML warmup must never block or break API startup.
+    """
+    import threading
+
+    def _worker() -> None:
+        try:
+            from app.services.email_ml_classifier import warm_up_email_ml_classifier
+
+            warm_up_email_ml_classifier()
+        except Exception:
+            logging.getLogger(__name__).debug(
+                "Email ML classifier warmup failed; continuing startup.",
+                exc_info=True,
+            )
+
+    threading.Thread(
+        target=_worker,
+        name="securesight360-email-ml-warmup",
+        daemon=True,
+    ).start()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Application startup and shutdown lifecycle.
-
-    Later we can use this for:
-    - Database initialization
-    - Background scan worker setup
-    - Report directory creation
-    - Security audit logging
     """
     configure_logging()
-    logging.getLogger(__name__).info("%s backend started", settings.PROJECT_NAME)
+
+    logger = logging.getLogger(__name__)
+    logger.info("%s backend starting", settings.PROJECT_NAME)
+
+    _initialize_database_on_startup()
+    _seed_admin_user_on_startup()
+    _warm_up_email_ml_classifier_on_startup()
+
+    logger.info("%s backend started", settings.PROJECT_NAME)
 
     yield
 
-    logging.getLogger(__name__).info("%s backend stopped", settings.PROJECT_NAME)
+    logger.info("%s backend stopped", settings.PROJECT_NAME)
 
 
 def create_app() -> FastAPI:
@@ -115,25 +183,3 @@ def root():
         "version": "1.0.0",
         "docs": "/docs",
     }
-
-# Warm up the local email ML classifier in the background.
-# This keeps the first user-facing email analysis from paying the full model-load cost.
-@app.on_event("startup")
-def _warm_up_email_ml_classifier_on_startup() -> None:
-    import threading
-
-    def _worker() -> None:
-        try:
-            from app.services.email_ml_classifier import warm_up_email_ml_classifier
-
-            warm_up_email_ml_classifier()
-        except Exception:
-            # ML must never prevent the main SecureSight360 API from starting.
-            pass
-
-    threading.Thread(
-        target=_worker,
-        name="securesight360-email-ml-warmup",
-        daemon=True,
-    ).start()
-
