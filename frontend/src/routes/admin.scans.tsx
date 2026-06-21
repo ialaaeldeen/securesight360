@@ -240,8 +240,8 @@ function WebsiteTable({ scans }: { scans: AdminWebsiteScan[] }) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[980px] text-left text-sm">
+    <div className="max-w-full overflow-x-auto">
+      <table className="w-full min-w-[860px] text-left text-sm">
         <thead className="bg-surface/70 text-xs uppercase tracking-wider text-muted-foreground">
           <tr>
             <th className="px-5 py-4">ID</th>
@@ -260,13 +260,13 @@ function WebsiteTable({ scans }: { scans: AdminWebsiteScan[] }) {
               key={`${scan.id ?? index}`}
               className="border-t border-border/70 transition hover:bg-surface/40"
             >
-              <td className="px-5 py-4 text-muted-foreground">
+              <td className="break-all px-5 py-4 text-muted-foreground">
                 {scan.id ?? "—"}
               </td>
-              <td className="px-5 py-4 font-semibold">
+              <td className="break-all px-5 py-4 font-semibold">
                 {targetOf(scan)}
               </td>
-              <td className="px-5 py-4 text-muted-foreground">
+              <td className="break-all px-5 py-4 text-muted-foreground">
                 {scan.user_email || "—"}
               </td>
               <td className="px-5 py-4">
@@ -290,7 +290,7 @@ function WebsiteTable({ scans }: { scans: AdminWebsiteScan[] }) {
                   {scan.status || "Unknown"}
                 </span>
               </td>
-              <td className="px-5 py-4 text-muted-foreground">
+              <td className="break-all px-5 py-4 text-muted-foreground">
                 {formatDate(scan.created_at)}
               </td>
             </tr>
@@ -335,11 +335,11 @@ function EmailTable({ emails }: { emails: AdminEmailAnalysis[] }) {
                 </span>
               </div>
 
-              <h3 className="mt-3 truncate font-semibold">
+              <h3 className="mt-3 break-all font-semibold">
                 {item.subject_preview || "No subject provided"}
               </h3>
 
-              <p className="mt-1 truncate text-xs text-muted-foreground">
+              <p className="mt-1 break-all text-xs text-muted-foreground">
                 User: {item.user_email || "Unknown user"} · Sender:{" "}
                 {item.sender_preview || "No sender provided"}
               </p>
@@ -349,7 +349,7 @@ function EmailTable({ emails }: { emails: AdminEmailAnalysis[] }) {
               </p>
             </div>
 
-            <div className="shrink-0 rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground xl:min-w-[240px]">
+            <div className="w-full rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground xl:w-auto xl:min-w-[240px] xl:shrink-0">
               <div className="flex items-center gap-2">
                 <Calendar className="h-3.5 w-3.5 text-cyan" />
                 {formatDate(item.created_at)}
@@ -373,7 +373,7 @@ function EmailTable({ emails }: { emails: AdminEmailAnalysis[] }) {
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-secondary/30 p-10 text-center text-sm text-muted-foreground">
+    <div className="rounded-2xl border border-dashed border-border bg-secondary/30 p-6 text-center text-sm text-muted-foreground sm:p-10">
       {message}
     </div>
   );
@@ -471,10 +471,10 @@ function AdminSecurityActivityPage() {
   }, [websiteScans, emailAnalyses]);
 
   return (
-    <div className="space-y-6">
-      <section className="glass rounded-2xl p-6 md:p-8">
+    <div className="space-y-5 sm:space-y-6">
+      <section className="glass rounded-2xl p-5 sm:p-6 md:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
             <div className="grid h-12 w-12 place-items-center rounded-xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10">
               <ShieldCheck className="h-6 w-6 text-cyan" />
             </div>
@@ -485,7 +485,7 @@ function AdminSecurityActivityPage() {
                 Unified admin activity
               </div>
 
-              <h1 className="mt-3 text-2xl font-semibold tracking-tight">
+              <h1 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
                 Security Activity History
               </h1>
 
@@ -495,14 +495,14 @@ function AdminSecurityActivityPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search activity..."
-                className="w-64 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60 sm:w-64"
               />
             </div>
 
@@ -510,7 +510,7 @@ function AdminSecurityActivityPage() {
               type="button"
               onClick={() => loadData("refresh")}
               disabled={refreshing || loading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               Refresh
@@ -519,7 +519,7 @@ function AdminSecurityActivityPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-5">
         <StatCard
           label="Website Scans"
           value={String(stats.websiteTotal)}
@@ -563,7 +563,7 @@ function AdminSecurityActivityPage() {
         </div>
       )}
 
-      <section className="glass rounded-2xl p-4 md:p-5">
+      <section className="glass rounded-2xl p-4 sm:p-5">
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-2">
             <TabButton

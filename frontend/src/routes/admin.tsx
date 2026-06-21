@@ -75,8 +75,8 @@ function AdminLayout() {
   };
 
   return (
-    <div className="h-dvh w-full flex overflow-hidden">
-      <aside className="glass hidden lg:flex h-dvh w-64 shrink-0 flex-col border-r border-border/70">
+    <div className="min-h-dvh w-full overflow-x-hidden lg:h-dvh lg:overflow-hidden">
+      <aside className="glass hidden h-dvh w-64 shrink-0 flex-col border-r border-border/70 lg:flex">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border/70">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-cyan to-accent-blue glow-cyan">
             <Shield className="h-5 w-5 text-[#021016]" />
@@ -86,13 +86,13 @@ function AdminLayout() {
             <div className="text-base font-semibold tracking-tight">
               Admin Console
             </div>
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground truncate">
+            <div className="truncate text-[11px] uppercase tracking-wider text-muted-foreground">
               SecureSight360
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-3 space-y-1">
+        <nav className="flex-1 space-y-1 px-3 py-3">
           <NavLink
             to="/admin/dashboard"
             label="Dashboard"
@@ -106,7 +106,7 @@ function AdminLayout() {
         <div className="mt-auto px-3 pb-3 space-y-2">
           <Link
             to="/"
-            className="flex items-center gap-2 rounded-xl border border-border bg-secondary/50 px-3 py-2 text-xs hover:bg-secondary transition"
+            className="flex min-h-[42px] items-center gap-2 rounded-xl border border-border bg-secondary/50 px-3 py-2 text-xs transition hover:bg-secondary"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to app
@@ -117,19 +117,19 @@ function AdminLayout() {
               logout();
               navigate({ to: "/" });
             }}
-            className="flex w-full items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 text-danger px-3 py-2 text-xs hover:bg-danger/20 transition"
+            className="flex min-h-[42px] w-full items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger transition hover:bg-danger/20"
           >
             <LogOut className="h-3.5 w-3.5" />
             Sign out
           </button>
 
-          <div className="text-[11px] text-muted-foreground px-1 truncate">
+          <div className="truncate px-1 text-[11px] text-muted-foreground">
             {user?.email}
           </div>
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0 h-dvh overflow-y-auto px-4 py-5 lg:px-8 lg:py-6">
+      <main className="min-h-0 flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-3 py-4 sm:px-4 sm:py-5 lg:h-dvh lg:px-8 lg:py-6">
         <Outlet />
       </main>
     </div>

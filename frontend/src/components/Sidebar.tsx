@@ -43,7 +43,7 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
   const canUseWebsite = canUseWebsiteFeatures(user);
 
   const Nav = (
-    <aside className="glass flex h-full w-64 2xl:w-72 shrink-0 flex-col rounded-none border-r border-border/70">
+    <aside className="glass flex h-full w-72 max-w-[92vw] shrink-0 flex-col rounded-none border-r border-border/70 lg:w-64 2xl:w-72">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border/70">
         <div className="relative grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-cyan to-accent-blue glow-cyan">
           <Shield className="h-5 w-5 text-[#021016]" />
@@ -75,7 +75,7 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
                 onSelect(it.id);
                 setOpen(false);
               }}
-              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all ${
+              className={`group flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ${
                 isActive
                   ? "bg-secondary text-foreground border border-border"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
@@ -86,7 +86,7 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
                   isActive ? "text-cyan" : ""
                 }`}
               />
-              <span>{label}</span>
+              <span className="truncate">{label}</span>
             </button>
           );
         })}
@@ -95,7 +95,7 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
           <Link
             to="/admin/dashboard"
             onClick={() => setOpen(false)}
-            className="mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm border border-cyan/30 bg-cyan/10 text-cyan hover:bg-cyan/15 transition"
+            className="mt-2 flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm border border-cyan/30 bg-cyan/10 text-cyan hover:bg-cyan/15 transition"
           >
             <ShieldCheck className="h-4 w-4 shrink-0" />
             <span>Admin Console</span>
@@ -109,7 +109,7 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
                 onSelect("scanner");
                 setOpen(false);
               }}
-              className="relative flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan hover:brightness-110 transition"
+              className="relative flex min-h-[44px] w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan hover:brightness-110 transition"
             >
               <Radar className="h-4 w-4 shrink-0" />
               <span className="min-w-0 flex-1 leading-snug">
@@ -130,7 +130,7 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
               setOpen(false);
               onLogout();
             }}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 transition"
+            className="flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 transition"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             <span>{t("header.logout")}</span>
@@ -147,7 +147,7 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
 
   return (
     <>
-      <div className="lg:hidden sticky top-0 z-40 flex items-center justify-between glass px-4 py-3 rounded-none">
+      <div className="lg:hidden sticky top-0 z-40 flex w-full max-w-full items-center justify-between glass px-3 py-3 sm:px-4 rounded-none">
         <div className="flex items-center gap-2">
           <Shield className="h-5 w-5 text-cyan" />
           <span className="font-semibold">
@@ -158,7 +158,7 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
         <button
           aria-label="Menu"
           onClick={() => setOpen(true)}
-          className="p-2 rounded-lg bg-secondary"
+          className="min-h-[44px] min-w-[44px] p-2 rounded-lg bg-secondary"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -181,14 +181,14 @@ export function Sidebar({ active, onSelect, onLogout }: Props) {
         />
 
         <div
-          className={`absolute left-0 top-0 h-full w-[19rem] max-w-[85vw] transform transition-transform duration-300 ease-out ${
+          className={`absolute left-0 top-0 h-full w-72 max-w-[92vw] transform transition-transform duration-300 ease-out ${
             open ? "translate-x-0" : "-translate-x-full"
           }`}
         >
           <div className="relative h-full overflow-y-auto">
             <button
               onClick={() => setOpen(false)}
-              className="absolute right-3 top-3 z-10 p-2 rounded-lg bg-secondary border border-border"
+              className="absolute right-3 top-3 z-10 min-h-[40px] min-w-[40px] p-2 rounded-lg bg-secondary border border-border"
               aria-label="Close menu"
             >
               <X className="h-4 w-4" />

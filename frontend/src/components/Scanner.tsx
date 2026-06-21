@@ -376,11 +376,11 @@ useEffect(() => {
   const feedback = data?.result?.metadata?.client_friendly_feedback ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Form */}
-      <form onSubmit={runScan} className="glass rounded-2xl p-6 md:p-7 space-y-5">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
+      <form onSubmit={runScan} className="glass rounded-2xl p-5 space-y-5 sm:p-6 md:p-7">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan/20 to-accent-blue/10 border border-border">
               <Radar className="h-5 w-5 text-cyan" />
             </div>
@@ -397,7 +397,7 @@ useEffect(() => {
             <button
               type="button"
               onClick={clearRegisteredDomain}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-medium hover:border-cyan/40 hover:text-cyan transition"
+              className="inline-flex min-h-[42px] w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-medium hover:border-cyan/40 hover:text-cyan transition sm:w-auto"
             >
               <ShieldCheck className="h-3.5 w-3.5" /> Change registered domain
             </button>
@@ -406,7 +406,7 @@ useEffect(() => {
 
         <AssessmentScopeCard />
 
-        <div className="grid gap-4 md:grid-cols-[1fr_220px]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
           <div>
             <label className="text-xs uppercase tracking-wider text-muted-foreground">Target URL</label>
             <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2.5 focus-within:border-cyan/60 focus-within:ring-2 focus-within:ring-cyan/20">
@@ -416,7 +416,7 @@ useEffect(() => {
                 onChange={(e) => setUrl(e.target.value)}
                 onBlur={() => setTouched(true)}
                 placeholder="https://your-company-domain.com"
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                 autoComplete="off"
               />
             </div>
@@ -428,13 +428,13 @@ useEffect(() => {
           </div>
           <div>
             <label className="text-xs uppercase tracking-wider text-muted-foreground">Profile</label>
-            <div className="mt-1.5 grid grid-cols-2 gap-2">
+            <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
               {(["basic"] as ScanProfile[]).map((p) => (
                 <button
                   key={p}
                   type="button"
                   onClick={() => setProfile(p)}
-                  className={`rounded-xl border px-3 py-2.5 text-sm capitalize transition ${
+                  className={`min-h-[44px] rounded-xl border px-3 py-2.5 text-sm capitalize transition ${
                     profile === p
                       ? "border-cyan/60 bg-cyan/10 text-cyan ring-2 ring-cyan/20"
                       : "border-border bg-surface/60 text-muted-foreground hover:text-foreground"
@@ -591,7 +591,7 @@ useEffect(() => {
 
       {/* Results */}
       {data && !loading && (
-        <div className="space-y-6">
+        <div className="space-y-5 sm:space-y-6">
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
             <div className={`glass rounded-2xl p-5 ring-1 ${scoreRing(score)}`}>
               <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5" />Security Score</div>
@@ -599,7 +599,7 @@ useEffect(() => {
                 {score ?? "—"}<span className="text-base text-muted-foreground">/100</span>
               </div>
             </div>
-            <div className="glass rounded-2xl p-5">
+            <div className="glass rounded-2xl p-4 sm:p-5">
               <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" />Risk Level</div>
               <div className="mt-3">
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium capitalize ${riskBadge(risk)}`}>
@@ -607,11 +607,11 @@ useEffect(() => {
                 </span>
               </div>
             </div>
-            <div className="glass rounded-2xl p-5">
+            <div className="glass rounded-2xl p-4 sm:p-5">
               <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" />Grade</div>
               <div className="mt-2 text-4xl font-semibold text-cyan">{grade ?? "—"}</div>
             </div>
-            <div className="glass rounded-2xl p-5">
+            <div className="glass rounded-2xl p-4 sm:p-5">
               <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><Bug className="h-3.5 w-3.5" />Findings</div>
               <div className="mt-2 text-4xl font-semibold">{findings ?? feedback.length}</div>
             </div>
@@ -664,13 +664,13 @@ useEffect(() => {
           )}
 
           <div className="glass rounded-2xl p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-start gap-3">
               <Lock className="h-4 w-4 text-cyan" />
               <div className="text-sm text-muted-foreground">
                 Assessment generated by SecureSight360 Risk Engine from safe, authorization-based external evidence. Not a full penetration test or full vulnerability assessment.
               </div>
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 break-all text-xs text-muted-foreground">
               <Server className="h-3.5 w-3.5" /> {API_BASE_URL}
               <ExternalLink className="h-3 w-3" />
             </div>
@@ -683,11 +683,11 @@ useEffect(() => {
 
 function SummaryCard({ title, icon: Icon, text }: { title: string; icon: any; text?: string }) {
   return (
-    <div className="glass rounded-2xl p-5">
+    <div className="glass rounded-2xl p-4 sm:p-5">
       <div className="flex items-center gap-2 text-sm font-medium">
         <Icon className="h-4 w-4 text-cyan" /> {title}
       </div>
-      <p className="mt-3 text-sm text-soft/90 leading-relaxed">
+      <p className="mt-3 break-words text-sm text-soft/90 leading-relaxed">
         {text || <span className="text-muted-foreground">Not provided.</span>}
       </p>
     </div>
@@ -702,7 +702,7 @@ function ListCard({
   const iconColor =
     tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-danger";
   return (
-    <div className="glass rounded-2xl p-5">
+    <div className="glass rounded-2xl p-4 sm:p-5">
       <div className="flex items-center gap-2 text-sm font-medium">
         <Icon className={`h-4 w-4 ${iconColor}`} /> {title}
       </div>
@@ -727,7 +727,7 @@ function FeedbackItem({ card }: { card: FeedbackCard }) {
   const why = card.why_it_matters || card.whyItMatters;
   const evidence = formatEvidence(card.evidence);
   return (
-    <div className="glass rounded-2xl p-5">
+    <div className="glass rounded-2xl p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="font-medium">{card.title || "Untitled Check"}</div>

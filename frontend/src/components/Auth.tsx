@@ -140,7 +140,7 @@ export function Auth({ onAuthenticated }: Props) {
 
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden">
+    <div className="relative min-h-screen w-full overflow-x-hidden">
       {/* Animated background */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-32 -left-32 h-[480px] w-[480px] rounded-full bg-cyan/15 blur-3xl animate-pulse" />
@@ -156,7 +156,7 @@ export function Auth({ onAuthenticated }: Props) {
         />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col px-4 lg:px-8 py-6">
+      <div className="relative mx-auto flex min-h-screen max-w-[1500px] flex-col px-3 py-4 sm:px-4 sm:py-6 lg:px-8">
         <TopBar onLogin={() => setView("login")} onSignup={() => setView("accountType")} onHome={() => setView("splash")} />
 
         <div className="flex-1 flex items-center justify-center py-10">
@@ -226,9 +226,9 @@ function AiAssistant({ onSignup }: { onSignup: () => void }) {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-50">
+    <div className="fixed inset-x-3 bottom-4 z-50 sm:inset-x-auto sm:right-5 sm:bottom-5">
       {open && (
-        <div className="mb-3 w-[340px] max-w-[calc(100vw-2.5rem)] rounded-2xl border border-border bg-surface/95 backdrop-blur-xl shadow-2xl overflow-hidden flex flex-col" style={{ height: 460 }}>
+        <div className="mb-3 w-full max-w-[calc(100vw-1.5rem)] rounded-2xl border border-border bg-surface/95 backdrop-blur-xl shadow-2xl overflow-hidden flex flex-col sm:w-[340px] sm:max-w-[calc(100vw-2.5rem)]" style={{ height: "min(460px, calc(100dvh - 7rem))" }}>
           <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-gradient-to-r from-cyan/10 to-accent-blue/10">
             <div className="flex items-center gap-2">
               <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-cyan to-accent-blue">
@@ -355,7 +355,7 @@ function SiteFooter({ onHome, onLogin, onSignup }: { onHome: () => void; onLogin
         <div className="md:justify-self-end md:text-right space-y-3 text-sm">
           <h3 className="text-lg font-semibold tracking-tight mb-2">Get in touch</h3>
           <p className="text-muted-foreground">Ready to assess your security posture?</p>
-          <button onClick={onSignup} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan to-accent-blue px-5 py-2.5 text-sm font-semibold text-[#021016] glow-cyan hover:brightness-110 transition">
+          <button onClick={onSignup} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan to-accent-blue px-4 py-2.5 text-sm font-semibold text-[#021016] glow-cyan hover:brightness-110 transition sm:px-5">
             Get Started <ArrowRight className="h-4 w-4" />
           </button>
         </div>
@@ -372,11 +372,11 @@ function TopBar({ onLogin, onSignup, onHome }: { onLogin: () => void; onSignup: 
   const navItem = "relative text-sm font-medium text-foreground/80 hover:text-cyan transition";
   const divider = <span className="text-border/60 select-none">|</span>;
   return (
-    <div className="rounded-2xl border border-border bg-surface/70 backdrop-blur-xl px-4 md:px-6 py-3 flex items-center justify-between gap-4">
+    <div className="rounded-2xl border border-border bg-surface/70 backdrop-blur-xl px-3 py-3 sm:px-4 md:px-6 flex items-center justify-between gap-3 overflow-hidden">
       <button onClick={onHome} className="flex items-center gap-3 shrink-0">
         <img src={cs360Logo} alt="SecureSight360 logo" width={40} height={40} className="h-10 w-10 object-contain" />
         <div className="text-left leading-tight">
-          <div className="text-lg font-semibold tracking-tight">
+          <div className="text-base font-semibold tracking-tight sm:text-lg">
             SecureSight<span className="text-cyan">360</span>
           </div>
           <div className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -399,7 +399,7 @@ function TopBar({ onLogin, onSignup, onHome }: { onLogin: () => void; onSignup: 
 
       <div className="flex items-center gap-2 shrink-0">
         <button onClick={onLogin} className="hidden sm:inline-flex rounded-xl border border-border bg-secondary/50 px-4 py-2 text-sm hover:bg-secondary transition">Sign in</button>
-        <button onClick={onSignup} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan to-accent-blue px-5 py-2.5 text-sm font-semibold text-[#021016] glow-cyan hover:brightness-110 transition">
+        <button onClick={onSignup} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan to-accent-blue px-4 py-2.5 text-sm font-semibold text-[#021016] glow-cyan hover:brightness-110 transition sm:px-5">
           Get Started <ArrowRight className="h-4 w-4" />
         </button>
       </div>
@@ -436,26 +436,26 @@ function Splash({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => vo
   return (
     <div className="w-full space-y-24 scroll-mt-24">
       {/* HERO — Cyber Security & IT Solutions */}
-      <section id="home" className="scroll-mt-24 space-y-10 max-w-4xl">
+      <section id="home" className="scroll-mt-24 max-w-4xl space-y-8 sm:space-y-10">
         <div className="space-y-6">
           <div className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-cyan border border-cyan/30 bg-cyan/10 px-3 py-1.5 rounded-full">
             <Sparkles className="h-3.5 w-3.5" /> Get Started
           </div>
-          <h1 className="text-4xl md:text-6xl font-semibold tracking-tight leading-[1.05]">
+          <h1 className="text-3xl font-semibold tracking-tight leading-[1.08] sm:text-4xl md:text-6xl md:leading-[1.05]">
             Cyber Security & IT <br />
             Solutions for Your <br />
             <span className="bg-gradient-to-r from-cyan to-accent-blue bg-clip-text text-transparent">Company</span>
           </h1>
           <div id="about" className="scroll-mt-24 max-w-3xl">
-            <p className="text-lg leading-relaxed text-muted-foreground">
+            <p className="text-base leading-relaxed text-muted-foreground sm:text-lg">
               <span className="text-foreground font-semibold">SecureSight360</span> is evolving into a professional cybersecurity platform for authorized website security posture assessment, evidence-backed reporting, and planned AI-assisted suspicious email analysis. Website assessment remains domain-authorized and should not be described as a full penetration test or full vulnerability assessment.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            <button onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan hover:brightness-110 transition">
+            <button onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan hover:brightness-110 transition sm:w-auto">
               Contact Us <ArrowRight className="h-4 w-4" />
             </button>
-            <button onClick={onLogin} className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/50 px-6 py-3 text-sm hover:bg-secondary transition">
+            <button onClick={onLogin} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/50 px-6 py-3 text-sm hover:bg-secondary transition sm:w-auto">
               <Lock className="h-4 w-4" /> Sign in to console
             </button>
           </div>
@@ -466,7 +466,7 @@ function Splash({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => vo
       <section id="services" className="scroll-mt-24">
         <div data-reveal className="flex flex-col items-center text-center mb-12">
           <div className="inline-flex items-center gap-2 rounded-full bg-surface/80 border border-border px-5 py-1.5 text-sm">Services</div>
-          <h2 className="mt-6 text-4xl md:text-5xl font-semibold tracking-tight">Our Core Services</h2>
+          <h2 className="mt-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">Our Core Services</h2>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((s, idx) => (
@@ -529,7 +529,7 @@ function Splash({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => vo
               </h3>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 md:gap-4 relative">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 relative">
               <Stat label="Risk reduction" value="-72%" sub="avg. across audits" tone="text-cyan" icon={BarChart3} />
               <Stat label="Website checks" value="Authorized" sub="verified business domains only" tone="text-accent-blue" icon={Globe} />
               <Stat label="Time to detect" value="<5min" sub="real-time alerts" tone="text-success" icon={Radar} />
@@ -604,7 +604,7 @@ function Splash({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => vo
       <section id="faq" className="scroll-mt-24">
         <div data-reveal className="flex flex-col items-center text-center mb-10">
           <div className="inline-flex items-center gap-2 rounded-full bg-surface/80 border border-border px-5 py-1.5 text-sm">FAQs</div>
-          <h2 className="mt-6 text-4xl md:text-5xl font-semibold tracking-tight">Frequently Asked Questions</h2>
+          <h2 className="mt-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">Frequently Asked Questions</h2>
           <p className="mt-4 text-muted-foreground">Everything you need to know about SecureSight360 services.</p>
         </div>
         <div className="max-w-3xl mx-auto space-y-3">
@@ -664,7 +664,7 @@ function ContactSection() {
     <section id="contact" className="scroll-mt-24">
       <div className="flex flex-col items-center text-center mb-10">
         <div className="inline-flex items-center gap-2 rounded-full bg-surface/80 border border-border px-5 py-1.5 text-sm">Contact</div>
-        <h2 className="mt-6 text-4xl md:text-5xl font-semibold tracking-tight">Get in touch</h2>
+        <h2 className="mt-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">Get in touch</h2>
         <p className="mt-4 text-muted-foreground max-w-xl">Tell us about your security goals and we'll get back to you within one business day.</p>
       </div>
 
@@ -678,7 +678,7 @@ function ContactSection() {
               </div>
               <div>
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">Email</div>
-                <div className="text-sm font-medium group-hover:text-cyan transition">allouah30@outlook.com</div>
+                <div className="break-all text-sm font-medium group-hover:text-cyan transition">allouah30@outlook.com</div>
               </div>
             </a>
             <a href="tel:+966550166203" className="flex items-start gap-3 group">
@@ -771,7 +771,7 @@ function Stat({ label, value, tone, sub, icon: Icon }: { label: string; value: s
 function AuthShell({ icon: Icon, title, subtitle, children }: { icon: any; title: string; subtitle: string; children: React.ReactNode }) {
   return (
     <div className="w-full max-w-md">
-      <div className="glass rounded-3xl p-7 md:p-8">
+      <div className="glass rounded-3xl p-5 sm:p-7 md:p-8">
         <div className="flex items-center gap-3 mb-6">
           <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-cyan to-accent-blue glow-cyan">
             <Icon className="h-5 w-5 text-[#021016]" />
@@ -797,7 +797,7 @@ function Field({ icon: Icon, type = "text", value, onChange, placeholder, autoCo
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+        className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
       />
     </div>
   );
@@ -871,7 +871,7 @@ function Login({
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             autoComplete="current-password"
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
           />
           <button
             type="button"
@@ -1129,7 +1129,7 @@ function Signup({
             onChange={(e) => setPwd(e.target.value)}
             placeholder="Password (min. 8 characters)"
             autoComplete="new-password"
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
           />
           <button
             type="button"

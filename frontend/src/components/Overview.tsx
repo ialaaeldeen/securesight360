@@ -159,14 +159,14 @@ function UnifiedSecurityDashboard() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm">
+      <section className="rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
               <ShieldCheck className="h-3.5 w-3.5" />
               Unified Security Dashboard
             </div>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight">
+            <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
               Website and email security overview
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
@@ -175,7 +175,7 @@ function UnifiedSecurityDashboard() {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[520px]">
+          <div className="grid w-full gap-3 sm:grid-cols-2 xl:w-[520px] xl:min-w-0">
             <HeroStatusCard
               label="Latest website"
               title={latest?.target ?? "No website scans yet"}
@@ -216,7 +216,7 @@ function UnifiedSecurityDashboard() {
         </div>
       )}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Website Score"
           value={latest?.score !== null && latest?.score !== undefined ? `${latest.score}/100` : "—"}
@@ -254,7 +254,7 @@ function UnifiedSecurityDashboard() {
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 sm:gap-6 xl:grid-cols-2">
         <Panel
           title="Website Security Posture"
           subtitle="Latest authorized website assessment and key posture signals."
@@ -281,7 +281,7 @@ function UnifiedSecurityDashboard() {
         </Panel>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 sm:gap-6 xl:grid-cols-2">
         <Panel
           title="Recent website scans"
           subtitle="Latest authorized website assessments."
@@ -324,7 +324,7 @@ function PersonalEmailDashboard({ onAnalyze }: { onAnalyze?: () => void }) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm">
+      <section className="rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
@@ -332,7 +332,7 @@ function PersonalEmailDashboard({ onAnalyze }: { onAnalyze?: () => void }) {
               Personal Email Threat Dashboard
             </div>
 
-            <h1 className="mt-4 text-3xl font-bold tracking-tight">
+            <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
               Email threat protection
             </h1>
 
@@ -359,7 +359,7 @@ function PersonalEmailDashboard({ onAnalyze }: { onAnalyze?: () => void }) {
         </div>
       )}
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           label="Emails Analyzed"
           value={loading ? "…" : String(metrics.total)}
@@ -382,7 +382,7 @@ function PersonalEmailDashboard({ onAnalyze }: { onAnalyze?: () => void }) {
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+      <section className="grid gap-5 sm:gap-6 xl:grid-cols-[0.85fr_1.15fr]">
         <Panel
           title="Latest email verdict"
           subtitle="Most recent suspicious email analysis."
@@ -595,8 +595,8 @@ function EmailThreatSummary({
 
 function RecentWebsiteScansTable({ scans }: { scans: NormalizedScan[] }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border">
-      <table className="w-full min-w-[660px] text-left text-sm">
+    <div className="max-w-full overflow-x-auto rounded-2xl border border-border">
+      <table className="w-full min-w-[560px] text-left text-sm">
         <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-4 py-3">Target</th>
@@ -638,8 +638,8 @@ function RecentWebsiteScansTable({ scans }: { scans: NormalizedScan[] }) {
 
 function RecentEmailAnalysesTable({ items }: { items: EmailThreatHistoryItem[] }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border">
-      <table className="w-full min-w-[680px] text-left text-sm">
+    <div className="max-w-full overflow-x-auto rounded-2xl border border-border">
+      <table className="w-full min-w-[600px] text-left text-sm">
         <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="px-4 py-3">Subject</th>
@@ -820,7 +820,7 @@ function HeroStatusCard({
         <Icon className="h-4 w-4 text-primary" />
         {label}
       </div>
-      <div className="mt-2 truncate font-semibold">{title}</div>
+      <div className="mt-2 break-words font-semibold">{title}</div>
       <div className="mt-1 text-xs leading-5 text-muted-foreground">{description}</div>
     </div>
   );
@@ -830,7 +830,7 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-border bg-background/60 p-4">
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-2 truncate font-semibold">{value}</div>
+      <div className="mt-2 break-words font-semibold">{value}</div>
     </div>
   );
 }
@@ -847,7 +847,7 @@ function MetricCard({
   icon: LucideIcon;
 }) {
   return (
-    <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+    <div className="rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-5">
       <div className="rounded-2xl bg-primary/10 p-3 text-primary w-fit">
         <Icon className="h-5 w-5" />
       </div>
@@ -872,7 +872,7 @@ function Panel({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+    <div className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
       <div className="mb-5 flex items-start gap-3">
         <div className="rounded-2xl bg-primary/10 p-3 text-primary">
           <Icon className="h-5 w-5" />

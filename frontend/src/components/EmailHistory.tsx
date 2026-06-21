@@ -157,10 +157,10 @@ export function EmailHistory() {
   };
 
   return (
-    <div className="space-y-6">
-      <section className="glass rounded-2xl p-6 md:p-8">
+    <div className="space-y-5 sm:space-y-6">
+      <section className="glass rounded-2xl p-5 sm:p-6 md:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-start gap-4 min-w-0">
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10">
               <Mail className="h-6 w-6 text-cyan" />
             </div>
@@ -171,7 +171,7 @@ export function EmailHistory() {
                 Privacy-safe email history
               </div>
 
-              <h1 className="mt-3 text-2xl font-semibold tracking-tight">
+              <h1 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
                 Email Analysis History
               </h1>
 
@@ -182,14 +182,14 @@ export function EmailHistory() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
             <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
               <Inbox className="h-4 w-4 text-muted-foreground" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search history..."
-                className="w-56 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60 sm:w-56"
               />
             </div>
 
@@ -197,7 +197,7 @@ export function EmailHistory() {
               type="button"
               onClick={() => load("refresh")}
               disabled={refreshing}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               Refresh
@@ -206,7 +206,7 @@ export function EmailHistory() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <SummaryCard label="Saved analyses" value={String(summary.total)} icon={Inbox} />
         <SummaryCard label="Suspicious emails" value={String(summary.suspicious)} icon={AlertTriangle} />
         <SummaryCard label="High confidence" value={String(summary.highConfidence)} icon={ShieldCheck} />
@@ -227,7 +227,7 @@ export function EmailHistory() {
       ) : filtered.length === 0 ? (
         <EmptyEmailHistory />
       ) : (
-        <section className="glass rounded-2xl p-4 md:p-5">
+        <section className="glass rounded-2xl p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <h2 className="font-semibold">Recent email checks</h2>
@@ -286,11 +286,11 @@ function HistoryRow({
           </div>
 
           <div className="min-w-0">
-            <div className="truncate font-semibold">
+            <div className="break-words font-semibold">
               {item.subject_preview || "No subject provided"}
             </div>
 
-            <div className="mt-1 truncate text-xs text-muted-foreground">
+            <div className="mt-1 break-all text-xs text-muted-foreground">
               {item.sender_preview || "No sender provided"}
             </div>
 
@@ -353,7 +353,7 @@ function EmailHistoryDetailPanel({
   return (
     <section
       id="email-history-detail-panel"
-      className="glass rounded-3xl border border-cyan/20 p-5 md:p-7"
+      className="glass rounded-3xl border border-cyan/20 p-4 sm:p-5 md:p-7"
     >
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
@@ -362,7 +362,7 @@ function EmailHistoryDetailPanel({
             Email threat evidence view
           </div>
 
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+          <h2 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
             {active.subject_preview || "Email analysis detail"}
           </h2>
 
@@ -396,7 +396,7 @@ function EmailHistoryDetailPanel({
         </div>
       ) : (
         <div className="mt-6 space-y-5">
-          <div className="rounded-2xl border border-border bg-surface/50 p-5">
+          <div className="rounded-2xl border border-border bg-surface/50 p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-2">
               <span
                 className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${verdictClass(
@@ -419,7 +419,7 @@ function EmailHistoryDetailPanel({
                 Evidence: {active.evidence_strength}
               </span>
 
-              <span className="rounded-full border border-border bg-background/40 px-3 py-1.5 text-xs font-semibold text-soft">
+              <span className="break-words rounded-full border border-border bg-background/40 px-3 py-1.5 text-xs font-semibold text-soft">
                 Headers: {active.headers_provided ? "Provided" : "Not provided"}
               </span>
             </div>
@@ -429,7 +429,7 @@ function EmailHistoryDetailPanel({
             </p>
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-2">
+          <div className="grid gap-4 sm:gap-5 xl:grid-cols-2">
             <InfoBox title="Key indicators" items={active.key_indicators} />
             <InfoBox title="Attachment alerts" items={active.attachment_alerts} />
             {"recommended_actions" in active && (
@@ -447,7 +447,7 @@ function EmailHistoryDetailPanel({
 
 function InfoBox({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface/50 p-5">
+    <div className="rounded-2xl border border-border bg-surface/50 p-4 sm:p-5">
       <div className="mb-3 font-medium">{title}</div>
 
       {items.length === 0 ? (
@@ -457,7 +457,7 @@ function InfoBox({ title, items }: { title: string; items: string[] }) {
           {items.map((item, index) => (
             <div
               key={`${title}-${index}`}
-              className="rounded-xl border border-border/70 bg-background/30 px-3 py-2 text-sm leading-relaxed text-muted-foreground"
+              className="break-words rounded-xl border border-border/70 bg-background/30 px-3 py-2 text-sm leading-relaxed text-muted-foreground"
             >
               {item}
             </div>
@@ -478,7 +478,7 @@ function SummaryCard({
   icon: any;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface/50 p-5">
+    <div className="rounded-2xl border border-border bg-surface/50 p-4 sm:p-5">
       <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
         <Icon className="h-4 w-4 text-cyan" />
         {label}
@@ -490,7 +490,7 @@ function SummaryCard({
 
 function LoadingBox({ text }: { text: string }) {
   return (
-    <div className="glass rounded-2xl p-10 text-center">
+    <div className="glass rounded-2xl p-6 text-center sm:p-10">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-border bg-secondary">
         <Loader2 className="h-6 w-6 animate-spin text-cyan" />
       </div>
@@ -504,7 +504,7 @@ function LoadingBox({ text }: { text: string }) {
 
 function EmptyEmailHistory() {
   return (
-    <div className="glass rounded-2xl p-10 text-center">
+    <div className="glass rounded-2xl p-6 text-center sm:p-10">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-border bg-secondary">
         <Mail className="h-6 w-6 text-cyan" />
       </div>

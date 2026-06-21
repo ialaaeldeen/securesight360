@@ -2,18 +2,18 @@ import { ShieldCheck, Lock, FileText, Mail, Scale, Eye, Database, Globe } from "
 
 export function Privacy() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <section className="relative overflow-hidden rounded-2xl border border-border">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0b1530] via-[#0a1226] to-[#04101c]" />
         <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-cyan/25 blur-3xl" />
-        <div className="relative p-7 md:p-10">
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-cyan border border-cyan/30 bg-cyan/10 px-2.5 py-1 rounded-full">
+        <div className="relative p-5 sm:p-7 md:p-10">
+          <div className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-full border border-cyan/30 bg-cyan/10 px-2.5 py-1 text-xs uppercase tracking-wider text-cyan">
             <Scale className="h-3.5 w-3.5" /> Privacy Agreements & Policies
           </div>
-          <h1 className="mt-4 text-3xl md:text-4xl font-semibold tracking-tight">
+          <h1 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
             Your data. <span className="bg-gradient-to-r from-cyan to-accent-blue bg-clip-text text-transparent">Your control.</span>
           </h1>
-          <p className="mt-3 text-muted-foreground max-w-2xl">
+          <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
             SecureSight360 only performs authorized, read-only assessments. This page summarizes how we collect, use,
             and protect information you provide while using the platform.
           </p>
@@ -21,7 +21,7 @@ export function Privacy() {
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
         <Card icon={ShieldCheck} title="Authorization-only scanning">
           We only scan domains you have explicitly verified ownership of. Unauthorized scanning is prohibited and
           actively blocked by the platform.
@@ -48,14 +48,14 @@ export function Privacy() {
         </Card>
       </div>
 
-      <section className="glass rounded-2xl p-6 md:p-7 space-y-4">
-        <div className="flex items-center gap-3">
+      <section className="glass rounded-2xl p-5 space-y-4 sm:p-6 md:p-7">
+        <div className="flex min-w-0 items-start gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan/20 to-accent-blue/10 border border-border">
             <FileText className="h-5 w-5 text-cyan" />
           </div>
-          <h2 className="text-lg font-semibold">Acceptable use & scan authorization</h2>
+          <h2 className="break-words text-lg font-semibold">Acceptable use & scan authorization</h2>
         </div>
-        <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+        <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground marker:text-cyan/80">
           <li>You confirm legal ownership of, or written authorization for, every domain you scan.</li>
           <li>Scans must be safe and read-only. No exploitation, denial of service, or data exfiltration attempts.</li>
           <li>Findings are confidential and may only be shared with parties authorized to receive them.</li>
@@ -64,17 +64,17 @@ export function Privacy() {
         </ol>
       </section>
 
-      <section className="glass rounded-2xl p-6 md:p-7 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <section className="glass rounded-2xl p-5 sm:p-6 md:p-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
           <Mail className="h-5 w-5 text-cyan" />
           <div>
-            <div className="font-medium">Questions about privacy?</div>
-            <div className="text-sm text-muted-foreground">Our team replies within 2 business days.</div>
+            <div className="break-words font-medium">Questions about privacy?</div>
+            <div className="break-words text-sm text-muted-foreground">Our team replies within 2 business days.</div>
           </div>
         </div>
         <a
           href="mailto:privacy@securesight360.app"
-          className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan hover:brightness-110 transition"
+          className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan to-accent-blue px-5 py-3 text-sm font-medium text-[#021016] glow-cyan transition hover:brightness-110 sm:w-auto"
         >
           Contact privacy team
         </a>
@@ -85,14 +85,14 @@ export function Privacy() {
 
 function Card({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
   return (
-    <div className="glass rounded-2xl p-5">
+    <div className="glass rounded-2xl p-4 sm:p-5">
       <div className="flex items-center gap-3 mb-2">
         <div className="grid h-9 w-9 place-items-center rounded-lg bg-secondary border border-border">
           <Icon className="h-4 w-4 text-cyan" />
         </div>
-        <div className="font-medium">{title}</div>
+        <div className="break-words font-medium">{title}</div>
       </div>
-      <p className="text-sm text-muted-foreground leading-relaxed">{children}</p>
+      <p className="break-words text-sm leading-relaxed text-muted-foreground">{children}</p>
     </div>
   );
 }

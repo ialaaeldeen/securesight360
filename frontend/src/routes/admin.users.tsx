@@ -166,7 +166,7 @@ function StatCard({
   tone: string;
 }) {
   return (
-    <section className="glass rounded-2xl p-5">
+    <section className="glass rounded-2xl p-4 sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -202,10 +202,10 @@ function UserIdentity({ user }: { user: AdminUser }) {
       </div>
 
       <div className="min-w-0">
-        <div className="truncate font-semibold">
+        <div className="break-words font-semibold">
           {user.full_name || "Unnamed user"}
         </div>
-        <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+        <div className="break-all text-xs text-muted-foreground">{user.email}</div>
       </div>
     </div>
   );
@@ -401,10 +401,10 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="glass rounded-2xl p-6 md:p-8">
+    <div className="space-y-5 sm:space-y-6">
+      <section className="glass rounded-2xl p-5 sm:p-6 md:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
             <div className="grid h-12 w-12 place-items-center rounded-xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10">
               <UserCog className="h-6 w-6 text-cyan" />
             </div>
@@ -415,7 +415,7 @@ export default function AdminUsersPage() {
                 Admin Access Control
               </div>
 
-              <h1 className="mt-3 text-2xl font-semibold tracking-tight">
+              <h1 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
                 User & Access Management
               </h1>
 
@@ -425,14 +425,14 @@ export default function AdminUsersPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search users, role, account type..."
-                className="w-64 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60 sm:w-64"
               />
             </div>
 
@@ -440,7 +440,7 @@ export default function AdminUsersPage() {
               type="button"
               onClick={() => loadUsers()}
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Refresh
@@ -449,7 +449,7 @@ export default function AdminUsersPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-4">
         <StatCard
           label="Total Users"
           value={String(stats.total)}
@@ -496,17 +496,17 @@ export default function AdminUsersPage() {
 
       <section className="glass overflow-hidden rounded-2xl">
         {loading ? (
-          <div className="flex items-center justify-center gap-3 p-10 text-muted-foreground">
+          <div className="flex items-center justify-center gap-3 p-6 text-muted-foreground sm:p-10">
             <RefreshCw className="h-5 w-5 animate-spin text-cyan" />
             Loading users...
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="p-10 text-center text-muted-foreground">
+          <div className="p-6 text-center text-muted-foreground sm:p-10">
             No users matched your search.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] text-left text-sm">
+          <div className="max-w-full overflow-x-auto">
+            <table className="w-full min-w-[960px] text-left text-sm">
               <thead className="bg-surface/70 text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="px-5 py-4">User</th>
@@ -553,7 +553,7 @@ export default function AdminUsersPage() {
                             value={user.role}
                             disabled={saving}
                             onChange={(event) => updateRole(user, event.target.value)}
-                            className="rounded-xl border border-border bg-background/40 px-3 py-2 text-xs outline-none transition hover:border-cyan/40 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="min-h-[42px] rounded-xl border border-border bg-background/40 px-3 py-2 text-xs outline-none transition hover:border-cyan/40 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <option value="user">user</option>
                             <option value="admin">admin</option>
@@ -576,16 +576,16 @@ export default function AdminUsersPage() {
                         </span>
                       </td>
 
-                      <td className="px-5 py-4 text-muted-foreground">
+                      <td className="break-all px-5 py-4 text-muted-foreground">
                         {formatDate(user.created_at)}
                       </td>
 
-                      <td className="px-5 py-4 text-muted-foreground">
+                      <td className="break-all px-5 py-4 text-muted-foreground">
                         {formatDate(user.last_login_at)}
                       </td>
 
                       <td className="px-5 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex flex-wrap justify-end gap-2">
                           <button
                             type="button"
                             disabled={saving}
@@ -611,7 +611,7 @@ export default function AdminUsersPage() {
                             type="button"
                             onClick={() => deleteUser(user)}
                             disabled={saving || isSelf}
-                            className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-300 transition hover:bg-red-950/50 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="inline-flex min-h-[42px] items-center justify-center gap-1 rounded-xl border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-300 transition hover:bg-red-950/50 disabled:cursor-not-allowed disabled:opacity-40"
                             title={
                               isSelf
                                 ? "You cannot delete your own account"
@@ -632,7 +632,7 @@ export default function AdminUsersPage() {
         )}
       </section>
 
-      <section className="glass rounded-2xl p-5">
+      <section className="glass rounded-2xl p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-secondary">
             <Shield className="h-5 w-5 text-cyan" />

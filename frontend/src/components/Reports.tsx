@@ -539,13 +539,13 @@ export function Reports() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       <section className="relative overflow-hidden rounded-3xl border border-border">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0b1530] via-[#0a1226] to-[#04101c]" />
         <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-cyan/20 blur-3xl" />
         <div className="absolute -bottom-24 -left-10 h-80 w-80 rounded-full bg-accent-blue/20 blur-3xl" />
 
-        <div className="relative grid gap-6 p-8 md:grid-cols-[1.35fr_1fr] md:p-12">
+        <div className="relative grid gap-5 p-5 sm:p-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:p-12">
           <div className="space-y-5">
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan/30 bg-cyan/10 px-2.5 py-1 text-xs uppercase tracking-wider text-cyan">
               <Sparkles className="h-3.5 w-3.5" />
@@ -553,7 +553,7 @@ export function Reports() {
             </div>
 
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl md:text-5xl">
                 Client-ready reports from authorized external assessment evidence.
               </h1>
 
@@ -563,12 +563,12 @@ export function Reports() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
               <button
                 type="button"
                 onClick={() => latestReport && downloadPdfReport(latestReport)}
                 disabled={!latestReport || downloadingId === latestReport?.id}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan to-accent-blue px-5 py-3 text-sm font-medium text-[#021016] glow-cyan transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan to-accent-blue px-5 py-3 text-sm font-medium text-[#021016] glow-cyan transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
               >
                 {downloadingId === latestReport?.id ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -722,7 +722,7 @@ function LatestReportCard({ report }: { report: ReportRecord | null }) {
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Mini v={String(report.score)} l="Score" tone={scoreTone(report.score)} />
             <Mini v={report.grade} l="Rating" tone="text-cyan" />
             <Mini v={String(report.findings_count)} l="Findings" tone="text-soft" />
@@ -766,7 +766,7 @@ function ReportCard({
           </div>
 
           <div className="min-w-0">
-            <div className="truncate font-medium">{report.domain}</div>
+            <div className="break-all font-medium">{report.domain}</div>
             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
               <Calendar className="h-3.5 w-3.5" />
               {formatDate(report.created_at)}
@@ -779,7 +779,7 @@ function ReportCard({
         </span>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2">
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <Mini v={String(report.score)} l="Score" tone={scoreTone(report.score)} />
         <Mini v={report.grade} l="Rating" tone="text-cyan" />
         <Mini v={String(report.findings_count)} l="Findings" tone="text-soft" />
@@ -793,7 +793,7 @@ function ReportCard({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <button
           type="button"
           onClick={onView}
@@ -807,7 +807,7 @@ function ReportCard({
           type="button"
           onClick={onDownload}
           disabled={downloading}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-cyan/30 bg-cyan/10 px-3 py-1.5 text-xs font-medium text-cyan transition hover:bg-cyan/15 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex min-h-[42px] w-full items-center justify-center gap-1.5 rounded-lg border border-cyan/30 bg-cyan/10 px-3 py-2 text-xs font-medium text-cyan transition hover:bg-cyan/15 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
         >
           {downloading ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -894,15 +894,15 @@ function ReportDetailsPanel({
   ]);
 
   return (
-    <section id="report-detail-panel" className="glass rounded-3xl border border-cyan/20 p-5 md:p-7">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    <section id="report-detail-panel" className="glass rounded-3xl border border-cyan/20 p-4 sm:p-5 md:p-7">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan/30 bg-cyan/10 px-2.5 py-1 text-xs uppercase tracking-wider text-cyan">
             <ShieldCheck className="h-3.5 w-3.5" />
             Assessment Evidence View
           </div>
 
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+          <h2 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
             {report.domain}
           </h2>
 
@@ -915,7 +915,7 @@ function ReportDetailsPanel({
               Scan ID: <span className="text-soft">{report.id}</span>
             </span>
             <span className="rounded-lg border border-border bg-surface/50 px-2.5 py-1">
-              Target: <span className="text-soft">{report.target_url || report.domain}</span>
+              Target: <span className="break-all text-soft">{report.target_url || report.domain}</span>
             </span>
             <span className="rounded-lg border border-border bg-surface/50 px-2.5 py-1">
               Date: <span className="text-soft">{formatDate(report.created_at)}</span>
@@ -928,7 +928,7 @@ function ReportDetailsPanel({
             type="button"
             onClick={onDownload}
             disabled={downloading}
-            className="inline-flex items-center gap-2 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-2 text-xs font-medium text-cyan transition hover:bg-cyan/15 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-2 text-xs font-medium text-cyan transition hover:bg-cyan/15 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {downloading ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -941,7 +941,7 @@ function ReportDetailsPanel({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-xs transition hover:border-danger/40 hover:text-danger"
+            className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-xs transition hover:border-danger/40 hover:text-danger sm:w-auto"
           >
             <X className="h-3.5 w-3.5" />
             Close
@@ -952,7 +952,7 @@ function ReportDetailsPanel({
       {loading ? (
         <LoadingBox text="Loading scanner evidence…" />
       ) : error ? (
-        <div className="mt-6 rounded-2xl border border-danger/30 bg-danger/10 p-5 text-danger">
+        <div className="mt-5 rounded-2xl border border-danger/30 bg-danger/10 p-4 text-danger sm:mt-6 sm:p-5">
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
@@ -962,8 +962,8 @@ function ReportDetailsPanel({
           </div>
         </div>
       ) : (
-        <div className="mt-6 space-y-6">
-          <div className="grid gap-3 md:grid-cols-4">
+        <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard label="Security Score" value={`${score}/100`} tone={scoreTone(score)} />
             <MetricCard label="Security Rating" value={rating} tone="text-cyan" />
             <MetricCard label="Risk Level" value={risk} tone="text-danger" />

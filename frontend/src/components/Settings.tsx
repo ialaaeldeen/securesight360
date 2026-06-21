@@ -65,26 +65,26 @@ export function Settings({ onLogout }: Props) {
   ] as const;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Hero */}
-      <div className="glass rounded-2xl p-6 lg:p-8 relative overflow-hidden">
+      <div className="glass rounded-2xl p-5 sm:p-6 lg:p-8 relative overflow-hidden">
         <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-cyan/10 blur-3xl pointer-events-none" />
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative">
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="text-xs uppercase tracking-wider text-cyan font-medium">Workspace Settings</div>
-            <h2 className="text-2xl font-semibold mt-1">Configure your SecureSight360 experience</h2>
+            <h2 className="mt-1 text-xl font-semibold sm:text-2xl">Configure your SecureSight360 experience</h2>
             <p className="text-sm text-muted-foreground mt-1">{canUseWebsite ? "Profile, appearance, security, scanner defaults, and data controls." : "Profile, appearance, account security, email analysis preferences, and privacy controls."}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <button
               onClick={save}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan to-accent-blue text-[#021016] px-4 py-2 text-sm font-medium glow-cyan hover:brightness-110 transition"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan to-accent-blue text-[#021016] px-4 py-2 text-sm font-medium glow-cyan hover:brightness-110 transition sm:w-auto"
             >
               {saved ? <><Check className="h-4 w-4" /> Saved</> : <><Save className="h-4 w-4" /> Save changes</>}
             </button>
             <button
               onClick={onLogout}
-              className="inline-flex items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 text-danger px-4 py-2 text-sm font-medium hover:bg-danger/20 transition"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-danger/40 bg-danger/10 text-danger px-4 py-2 text-sm font-medium hover:bg-danger/20 transition sm:w-auto"
             >
               <LogOut className="h-4 w-4" /> Log out
             </button>
@@ -92,9 +92,9 @@ export function Settings({ onLogout }: Props) {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[240px_1fr] gap-6">
+      <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6">
         {/* Side tabs */}
-        <nav className="glass rounded-2xl p-2 h-fit">
+        <nav className="glass max-w-full overflow-x-auto rounded-2xl p-2 lg:h-fit lg:overflow-visible">
           {tabs.filter((t) => canUseWebsite || t.id !== "scanner").map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
@@ -102,7 +102,7 @@ export function Settings({ onLogout }: Props) {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ${
+                className={`flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ${
                   active ? "bg-secondary text-foreground border border-border" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                 }`}
               >
@@ -114,13 +114,13 @@ export function Settings({ onLogout }: Props) {
         </nav>
 
         {/* Content */}
-        <div className="space-y-6 min-w-0">
+        <div className="min-w-0 space-y-5 sm:space-y-6">
           {tab === "profile" && (
             <Card
               title="Registered account"
               desc={canUseWebsite ? "These details are loaded from your authenticated backend account. Your verified company domain controls which websites this account can scan." : "These details are loaded from your authenticated backend account. Personal accounts are configured for AI Email Analyzer and Email Analysis History."}
             >
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid gap-4 lg:grid-cols-2">
                 <ReadOnlyField label="Registrant name" icon={User} value={name} />
                 <ReadOnlyField label="Account email" icon={Mail} value={email} />
                 {canUseWebsite ? (
@@ -185,12 +185,12 @@ export function Settings({ onLogout }: Props) {
                 </div>
               </Card>
               <Card title="API access key" desc="Use this key to connect the FastAPI backend or CI pipelines.">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 flex items-center gap-2 rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm">
                     <KeyRound className="h-4 w-4 text-cyan" />
-                    <span className="truncate">{showKey ? "cs360_live_8f2a91c4e6b27d59f0a1b3c8d2e4f7a9" : "•••••••••••••••••••••••••••••••••••"}</span>
+                    <span className="break-all">{showKey ? "cs360_live_8f2a91c4e6b27d59f0a1b3c8d2e4f7a9" : "•••••••••••••••••••••••••••••••••••"}</span>
                   </div>
-                  <button onClick={() => setShowKey(s => !s)} className="rounded-xl border border-border bg-secondary p-2 hover:bg-secondary/70">
+                  <button onClick={() => setShowKey(s => !s)} className="min-h-[42px] min-w-[42px] rounded-xl border border-border bg-secondary p-2 hover:bg-secondary/70">
                     {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -204,17 +204,17 @@ export function Settings({ onLogout }: Props) {
               <div className="grid sm:grid-cols-2 gap-3">
                 <button
                   onClick={() => setDefaultProfile("basic")}
-                  className={`rounded-xl border p-4 text-left transition ${defaultProfile === "basic" ? "border-cyan bg-cyan/10" : "border-border bg-secondary hover:border-cyan/40"}`}
+                  className={`min-h-[92px] rounded-xl border p-4 text-left transition ${defaultProfile === "basic" ? "border-cyan bg-cyan/10" : "border-border bg-secondary hover:border-cyan/40"}`}
                 >
-                  <div className="font-medium">Basic</div>
-                  <div className="text-xs text-muted-foreground mt-1">Headers, TLS, surface checks. ~30s.</div>
+                  <div className="break-words font-medium">Basic</div>
+                  <div className="mt-1 break-words text-xs text-muted-foreground">Headers, TLS, surface checks. ~30s.</div>
                 </button>
                 <button
                   onClick={() => setDefaultProfile("advanced")}
-                  className={`rounded-xl border p-4 text-left transition ${defaultProfile === "advanced" ? "border-cyan bg-cyan/10" : "border-border bg-secondary hover:border-cyan/40"}`}
+                  className={`min-h-[92px] rounded-xl border p-4 text-left transition ${defaultProfile === "advanced" ? "border-cyan bg-cyan/10" : "border-border bg-secondary hover:border-cyan/40"}`}
                 >
-                  <div className="font-medium">Advanced</div>
-                  <div className="text-xs text-muted-foreground mt-1">Full risk engine + detection summary. ~2m.</div>
+                  <div className="break-words font-medium">Advanced</div>
+                  <div className="mt-1 break-words text-xs text-muted-foreground">Full risk engine + detection summary. ~2m.</div>
                 </button>
               </div>
               <div className="h-px bg-border my-5" />
@@ -238,7 +238,7 @@ export function Settings({ onLogout }: Props) {
           {tab === "data" && (
             <>
        <Card title="Danger zone" desc="Irreversible workspace actions." danger>
-                <button className="inline-flex items-center gap-2 rounded-xl border border-danger/40 bg-danger/10 text-danger px-4 py-2 text-sm hover:bg-danger/20">
+                <button className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-danger/40 bg-danger/10 text-danger px-4 py-2 text-sm hover:bg-danger/20 sm:w-auto">
                   <Trash2 className="h-4 w-4" /> {canUseWebsite ? "Delete all scan history" : "Delete all email analysis history"}
                 </button>
               </Card>
@@ -339,12 +339,12 @@ function ThemeCard({ active, onClick, icon: Icon, label, desc, swatch }: { activ
       className={`relative rounded-2xl border p-4 text-left transition overflow-hidden ${active ? "border-cyan bg-cyan/10" : "border-border bg-secondary hover:border-cyan/40"}`}
     >
       <div className={`h-20 w-full rounded-xl bg-gradient-to-br ${swatch} border border-border mb-3`} />
-      <div className="flex items-center gap-2">
+      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
         <Icon className="h-4 w-4 text-cyan" />
-        <span className="font-medium">{label}</span>
+        <span className="break-words font-medium">{label}</span>
         {active && <Check className="h-4 w-4 text-cyan ml-auto" />}
       </div>
-      <div className="text-xs text-muted-foreground mt-1">{desc}</div>
+      <div className="mt-1 break-words text-xs text-muted-foreground">{desc}</div>
     </button>
   );
 }

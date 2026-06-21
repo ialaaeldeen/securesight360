@@ -36,7 +36,7 @@ export function Header({ section, onBack, canGoBack }: HeaderProps) {
 
   const t = sectionMeta[section] || sectionMeta.overview;
   return (
-    <header className="glass rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+    <header className="glass w-full max-w-full overflow-hidden rounded-2xl px-3 py-3 sm:px-4 flex items-center justify-between gap-3">
       <div className="flex items-center gap-3 min-w-0">
         {canGoBack && (
           <button
@@ -49,12 +49,12 @@ export function Header({ section, onBack, canGoBack }: HeaderProps) {
           </button>
         )}
         <div className="min-w-0">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground truncate">SecureSight360 / {t.title}</div>
-          <h1 className="text-xl font-semibold mt-0.5 truncate">{t.title}</h1>
+          <div className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground truncate">SecureSight360 / {t.title}</div>
+          <h1 className="text-lg sm:text-xl font-semibold mt-0.5 truncate">{t.title}</h1>
           <p className="text-sm text-muted-foreground hidden sm:block truncate">{t.sub}</p>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="hidden md:flex shrink-0 items-center gap-2">
         <div className="hidden xl:flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs">
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full rounded-full bg-success/60 animate-ping" />

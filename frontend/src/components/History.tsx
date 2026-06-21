@@ -400,32 +400,32 @@ function WebsiteHistoryContent() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="glass rounded-2xl p-6 md:p-8 relative overflow-hidden">
+    <div className="space-y-5 sm:space-y-6">
+      <div className="glass rounded-2xl p-5 sm:p-6 md:p-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-cyan/5 via-transparent to-accent-blue/10 pointer-events-none" />
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative">
-          <div className="flex items-center gap-4 min-w-0">
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-cyan/20 to-accent-blue/10 border border-border">
               <HistoryIcon className="h-6 w-6 text-cyan" />
             </div>
 
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold tracking-tight">Scan History</h1>
+              <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Scan History</h1>
               <p className="text-sm text-muted-foreground">
                 Backend-owned history for authorized external posture assessments.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search domain..."
-                className="bg-transparent text-sm outline-none placeholder:text-muted-foreground/60 w-56"
+                className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60 sm:w-56"
               />
             </div>
 
@@ -433,7 +433,7 @@ function WebsiteHistoryContent() {
               type="button"
               onClick={() => loadBackendHistory("refresh")}
               disabled={refreshing}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm hover:border-cyan/40 hover:text-cyan disabled:opacity-50 disabled:cursor-not-allowed transition"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm hover:border-cyan/40 hover:text-cyan disabled:opacity-50 disabled:cursor-not-allowed transition sm:w-auto"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               Refresh
@@ -463,15 +463,15 @@ function WebsiteHistoryContent() {
           {filtered.map((r) => (
             <div
               key={r.id}
-              className="glass rounded-2xl p-5 flex flex-col xl:flex-row xl:items-center gap-5"
+              className="glass rounded-2xl p-4 sm:p-5 flex flex-col gap-4 xl:flex-row xl:items-center"
             >
-              <div className="flex items-center gap-4 min-w-0 flex-1">
+              <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-secondary border border-border">
                   <Globe className="h-5 w-5 text-cyan" />
                 </div>
 
                 <div className="min-w-0">
-                  <div className="font-semibold truncate">{r.domain}</div>
+                  <div className="break-all font-semibold">{r.domain}</div>
 
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
                     <Calendar className="h-3.5 w-3.5" />
@@ -480,7 +480,7 @@ function WebsiteHistoryContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 xl:w-[520px]">
+              <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 xl:w-[520px]">
                 <Mini v={String(r.score)} l="Score" tone={scoreTone(r.score)} />
                 <Mini v={r.grade} l="Security Rating" tone="text-accent-blue" />
                 <Mini v={String(r.findings_count)} l="Findings" tone="text-soft" />
@@ -496,7 +496,7 @@ function WebsiteHistoryContent() {
                 <button
                   type="button"
                   onClick={() => viewDetails(r)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-cyan/30 bg-cyan/10 px-3 py-2 text-xs text-cyan hover:bg-cyan/15 transition"
+                  className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl border border-cyan/30 bg-cyan/10 px-3 py-2 text-xs text-cyan hover:bg-cyan/15 transition"
                 >
                   <Eye className="h-3.5 w-3.5" />
                   View Details
@@ -636,7 +636,7 @@ function HistoryDetailsPanel({
   ]);
 
   return (
-    <section id="history-detail-panel" className="glass rounded-3xl border border-cyan/20 p-5 md:p-7">
+    <section id="history-detail-panel" className="glass rounded-3xl border border-cyan/20 p-4 sm:p-5 md:p-7">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan/30 bg-cyan/10 px-2.5 py-1 text-xs uppercase tracking-wider text-cyan">
@@ -655,7 +655,7 @@ function HistoryDetailsPanel({
               Scan ID: <span className="text-soft">{record.id}</span>
             </span>
             <span className="rounded-lg border border-border bg-surface/50 px-2.5 py-1">
-              Target: <span className="text-soft">{record.target_url || record.domain}</span>
+              Target: <span className="break-all text-soft">{record.target_url || record.domain}</span>
             </span>
             <span className="rounded-lg border border-border bg-surface/50 px-2.5 py-1">
               Date: <span className="text-soft">{formatDate(record.created_at)}</span>
@@ -666,7 +666,7 @@ function HistoryDetailsPanel({
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-xs transition hover:border-danger/40 hover:text-danger"
+          className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-xs transition hover:border-danger/40 hover:text-danger"
         >
           <X className="h-3.5 w-3.5" />
           Close
@@ -690,7 +690,7 @@ function HistoryDetailsPanel({
         </div>
       ) : (
         <div className="mt-6 space-y-6">
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard label="Security Score" value={`${score}/100`} tone={scoreTone(score)} />
             <MetricCard label="Security Rating" value={rating} tone="text-cyan" />
             <MetricCard label="Risk Level" value={risk} tone="text-danger" />
@@ -724,7 +724,7 @@ function EvidenceBox({
   rows: EvidenceRow[];
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface/50 p-5">
+    <div className="rounded-2xl border border-border bg-surface/50 p-4 sm:p-5">
       <div className="mb-4 flex items-center gap-2 font-medium">
         <Icon className="h-4 w-4 text-cyan" />
         {title}
@@ -755,7 +755,7 @@ function EvidenceBox({
 
 function MetricCard({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface/50 p-5">
+    <div className="rounded-2xl border border-border bg-surface/50 p-4 sm:p-5">
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className={`mt-2 text-2xl font-semibold ${tone}`}>{value}</div>
     </div>
@@ -764,7 +764,7 @@ function MetricCard({ label, value, tone }: { label: string; value: string; tone
 
 function LoadingBox({ text }: { text: string }) {
   return (
-    <div className="glass rounded-2xl p-10 text-center">
+    <div className="glass rounded-2xl p-6 text-center sm:p-10">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-secondary border border-border">
         <Loader2 className="h-6 w-6 text-cyan animate-spin" />
       </div>
@@ -780,7 +780,7 @@ function LoadingBox({ text }: { text: string }) {
 
 function EmptyHistory() {
   return (
-    <div className="glass rounded-2xl p-10 text-center">
+    <div className="glass rounded-2xl p-6 text-center sm:p-10">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-secondary border border-border">
         <HistoryIcon className="h-6 w-6 text-cyan" />
       </div>

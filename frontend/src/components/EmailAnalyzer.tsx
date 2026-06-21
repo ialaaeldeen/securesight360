@@ -270,10 +270,10 @@ export function EmailAnalyzer() {
     attachments.length > 0;
 
   return (
-    <div className="space-y-6">
-      <section className="glass rounded-2xl p-6 md:p-8">
+    <div className="space-y-5 sm:space-y-6">
+      <section className="glass rounded-2xl p-5 sm:p-6 md:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-start gap-4 min-w-0">
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10">
               <Mail className="h-6 w-6 text-cyan" />
             </div>
@@ -284,7 +284,7 @@ export function EmailAnalyzer() {
                 Privacy-safe email review
               </div>
 
-              <h1 className="mt-3 text-2xl font-semibold tracking-tight">
+              <h1 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
                 AI Email Threat Analyzer
               </h1>
 
@@ -296,13 +296,13 @@ export function EmailAnalyzer() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
             <SmallPill icon={Inbox}>Saved analyses: {recentCount ?? "—"}</SmallPill>
 
             <button
               type="button"
               onClick={loadSample}
-              className="inline-flex items-center gap-2 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-2 text-sm text-cyan transition hover:bg-cyan/15"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-2 text-sm text-cyan transition hover:bg-cyan/15 sm:w-auto"
             >
               <Sparkles className="h-4 w-4" />
               Load sample
@@ -311,7 +311,7 @@ export function EmailAnalyzer() {
             <button
               type="button"
               onClick={clearForm}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-danger/40 hover:text-danger"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-danger/40 hover:text-danger sm:w-auto"
             >
               <Trash2 className="h-4 w-4" />
               Clear
@@ -331,7 +331,7 @@ export function EmailAnalyzer() {
             <button
               type="button"
               onClick={() => setShowForm(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-2 text-sm text-cyan transition hover:bg-cyan/15"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-2 text-sm text-cyan transition hover:bg-cyan/15 sm:w-auto"
             >
               <Mail className="h-4 w-4" />
               Open email details form
@@ -341,8 +341,8 @@ export function EmailAnalyzer() {
       )}
 
       {showForm && (
-        <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-          <div className="glass rounded-2xl p-5 md:p-6">
+        <section className="grid gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+          <div className="glass rounded-2xl p-4 sm:p-5 md:p-6">
             <div className="mb-5">
               <h2 className="text-lg font-semibold">Email details</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -356,17 +356,17 @@ export function EmailAnalyzer() {
                   value={subject}
                   onChange={(event) => setSubject(event.target.value)}
                   placeholder="Example: Urgent invoice payment request"
-                  className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                  className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                 />
               </Field>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-2">
                 <Field label="Sender">
                   <input
                     value={sender}
                     onChange={(event) => setSender(event.target.value)}
                     placeholder="Display Name <sender@example.com>"
-                    className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                    className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                   />
                 </Field>
 
@@ -375,7 +375,7 @@ export function EmailAnalyzer() {
                     value={replyTo}
                     onChange={(event) => setReplyTo(event.target.value)}
                     placeholder="reply-to@example.com"
-                    className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                    className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                   />
                 </Field>
               </div>
@@ -386,18 +386,18 @@ export function EmailAnalyzer() {
                   onChange={(event) => setBody(event.target.value)}
                   rows={7}
                   placeholder="Paste the suspicious email body if available..."
-                  className="w-full resize-y bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                  className="min-w-0 w-full resize-y bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                 />
               </Field>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-2">
                 <Field label="Suspicious links">
                   <textarea
                     value={linksText}
                     onChange={(event) => setLinksText(event.target.value)}
                     rows={4}
                     placeholder="Paste links, separated by new lines or commas..."
-                    className="w-full resize-y bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                    className="min-w-0 w-full resize-y bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                   />
                 </Field>
 
@@ -407,7 +407,7 @@ export function EmailAnalyzer() {
                     onChange={(event) => setHeaders(event.target.value)}
                     rows={4}
                     placeholder="Paste Authentication-Results or headers if available..."
-                    className="w-full resize-y bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+                    className="min-w-0 w-full resize-y bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
                   />
                 </Field>
               </div>
@@ -433,7 +433,7 @@ export function EmailAnalyzer() {
                 type="button"
                 onClick={submit}
                 disabled={!canAnalyze || submitting}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan to-accent-blue px-5 py-3 text-sm font-medium text-[#021016] glow-cyan transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan to-accent-blue px-5 py-3 text-sm font-medium text-[#021016] glow-cyan transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -460,7 +460,7 @@ export function EmailAnalyzer() {
 
 function OpenAnalyzerCard({ onOpen }: { onOpen: () => void }) {
   return (
-    <section className="glass rounded-2xl p-8 text-center">
+    <section className="glass rounded-2xl p-5 text-center sm:p-8">
       <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-cyan/25 bg-cyan/10">
         <Mail className="h-8 w-8 text-cyan" />
       </div>
@@ -530,12 +530,12 @@ function AttachmentBox({
           {attachments.map((attachment, index) => (
             <div
               key={`${attachment.file_name}-${index}`}
-              className="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background/30 px-3 py-2 text-sm"
+              className="flex flex-col gap-3 rounded-xl border border-border/70 bg-background/30 px-3 py-2 text-sm sm:flex-row sm:items-start sm:justify-between"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2 font-medium">
                   <Paperclip className="h-4 w-4 text-cyan" />
-                  <span className="truncate">{attachment.file_name}</span>
+                  <span className="break-all">{attachment.file_name}</span>
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {attachment.content_type || "Unknown type"} ·{" "}
@@ -816,11 +816,11 @@ function ResultPanel({
   );
 
   return (
-    <div className="glass rounded-2xl p-5 md:p-6 space-y-5">
+    <div className="glass rounded-2xl p-4 space-y-5 sm:p-5 md:p-6">
       <MLSignalCard signal={result.ml_email_signal} />
 
       <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
           <div
             className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${verdictClass(
               result.verdict
@@ -917,7 +917,7 @@ function FriendlySection({
   emptyText?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface/50 p-5">
+    <div className="rounded-2xl border border-border bg-surface/50 p-4 sm:p-5">
       <div className="flex items-start gap-3">
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-cyan/10 text-cyan">
           <Icon className="h-4 w-4" />
@@ -938,7 +938,7 @@ function FriendlySection({
               {items.map((item, index) => (
                 <div
                   key={`${title}-${index}`}
-                  className="rounded-xl border border-border/70 bg-background/30 px-3 py-2 text-sm leading-7 text-muted-foreground"
+                  className="break-words rounded-xl border border-border/70 bg-background/30 px-3 py-2 text-sm leading-7 text-muted-foreground"
                 >
                   {item}
                 </div>
@@ -1024,7 +1024,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className="rounded-xl border border-border bg-surface/60 px-3 py-2.5 transition focus-within:border-cyan/60 focus-within:ring-2 focus-within:ring-cyan/20">
+      <div className="min-w-0 rounded-xl border border-border bg-surface/60 px-3 py-2.5 transition focus-within:border-cyan/60 focus-within:ring-2 focus-within:ring-cyan/20">
         {children}
       </div>
     </label>

@@ -124,11 +124,11 @@ function Index() {
   }
 
   return (
-    <div className="h-dvh w-full flex overflow-hidden">
-      <div className="w-full flex flex-1 gap-0 overflow-hidden">
+    <div className="min-h-dvh w-full overflow-x-hidden lg:h-dvh lg:overflow-hidden">
+      <div className="flex min-h-dvh w-full flex-col overflow-x-hidden lg:h-dvh lg:flex-row lg:overflow-hidden">
         <Sidebar active={section} onSelect={go} onLogout={logout} />
 
-        <main className="flex-1 min-w-0 h-dvh space-y-4 px-3 py-3 lg:px-4 lg:py-3 w-full overflow-y-auto overflow-x-hidden">
+        <main className="min-h-0 flex-1 min-w-0 w-full space-y-4 overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-4 lg:h-dvh lg:px-4 lg:py-3">
           <Header
             section={section}
             onBack={goBack}
