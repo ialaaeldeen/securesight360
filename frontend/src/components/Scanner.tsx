@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { apiFetch } from "@/lib/api";
+import { API_BASE, apiFetch } from "@/lib/api";
 import { AssessmentScopeCard } from "@/components/AssessmentScopeCard";
 import {
   Globe, ShieldCheck, Search, AlertTriangle, CheckCircle, Radar, Bug, Lock, Server, FileText, ExternalLink, Zap, BarChart3,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
-const API_BASE_URL =
-  ((import.meta as any).env?.VITE_API_BASE_URL ||
-    (import.meta as any).env?.NEXT_PUBLIC_API_BASE_URL ||
-    "http://127.0.0.1:8000").replace(/\/$/, "");
+const API_BASE_URL = API_BASE.replace(/\/$/, "");
 
 type ScanProfile = "basic" | "advanced";
 
@@ -777,6 +774,7 @@ function formatEvidence(e: FeedbackCard["evidence"]): string | null {
     return null;
   }
 }
+
 
 
 
