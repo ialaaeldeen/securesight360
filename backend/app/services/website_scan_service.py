@@ -581,6 +581,8 @@ def _build_finding_rows(
             continue
 
         evidence_payload = _compact_plain_data(item_payload.get("evidence"))
+        evidence_text = _safe_json_text(evidence_payload)
+
         standards_payload = _compact_plain_data(
             _first_not_none(
                 item_payload.get("references"),
@@ -605,14 +607,14 @@ def _build_finding_rows(
                     "title": title or description,
                     "name": title or description,
                     "description": description or title,
-                    "severity": _string_or_none(
+                    "severity": _normalize_finding_severity(
                         _first_not_none(
                             item_payload.get("severity"),
                             item_payload.get("risk_level"),
                             "medium",
                         )
                     ),
-                    "category": _string_or_none(
+                    "category": _normalize_finding_category(
                         _first_not_none(
                             item_payload.get("category"),
                             item_payload.get("control_area"),
@@ -620,7 +622,7 @@ def _build_finding_rows(
                             "website_security",
                         )
                     ),
-                    "evidence": evidence_payload,
+                    "evidence": evidence_text,
                     "evidence_json": evidence_payload,
                     "recommendation": _string_or_none(
                         _first_not_none(
@@ -635,10 +637,10 @@ def _build_finding_rows(
                     "detection_method": _string_or_none(
                         item_payload.get("detection_method")
                     ),
-                    "reference": standards_payload,
+                    "reference": _safe_json_text(standards_payload),
                     "references": standards_payload,
                     "standards": standards_payload,
-                    "status": "OPEN",
+                    "status": "open",
                     "source": "risk_engine",
                     "metadata": metadata_payload,
                     "details": metadata_payload,
@@ -650,6 +652,81 @@ def _build_finding_rows(
 
     return finding_rows
 
+
+_ALLOWED_FINDING_SEVERITIES = {"critical", "high", "medium", "low", "info"}
+_ALLOWED_FINDING_CATEGORIES = {
+    "website_security",
+    "ssl_tls",
+    "security_headers",
+    "dns_security",
+    "email_security",
+    "network_exposure",
+    "service_exposure",
+    "misconfiguration",
+    "compliance",
+    "general",
+}
+
+
+def _safe_json_text(value: Any) -> str | None:
+    value = _compact_plain_data(value)
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    try:
+        return json.dumps(value, ensure_ascii=False, default=str)
+    except TypeError:
+        return str(value)
+
+
+def _normalize_finding_severity(value: Any) -> str:
+    severity = _string_or_none(value)
+    if not severity:
+        return "medium"
+
+    normalized = severity.strip().lower().replace(" ", "_").replace("-", "_")
+    if normalized in _ALLOWED_FINDING_SEVERITIES:
+        return normalized
+
+    if normalized in {"informational", "notice", "passed"}:
+        return "info"
+
+    return "medium"
+
+
+def _normalize_finding_category(value: Any) -> str:
+    category = _string_or_none(value)
+    if not category:
+        return "website_security"
+
+    normalized = category.strip().lower().replace(" ", "_").replace("-", "_")
+
+    aliases = {
+        "headers": "security_headers",
+        "security_header": "security_headers",
+        "http_headers": "security_headers",
+        "ssl": "ssl_tls",
+        "tls": "ssl_tls",
+        "certificate": "ssl_tls",
+        "dns": "dns_security",
+        "email": "email_security",
+        "email_dns": "email_security",
+        "caa": "dns_security",
+        "dmarc": "email_security",
+        "spf": "email_security",
+        "dkim": "email_security",
+        "availability": "website_security",
+        "technology": "website_security",
+        "technology_stack": "website_security",
+    }
+
+    normalized = aliases.get(normalized, normalized)
+
+    if normalized in _ALLOWED_FINDING_CATEGORIES:
+        return normalized
+
+    return "website_security"
 
 def _reflect_table(
     metadata: MetaData,
@@ -1414,5 +1491,4 @@ def _has_meaningful_value(value: Any) -> bool:
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
 
