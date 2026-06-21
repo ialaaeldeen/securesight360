@@ -567,7 +567,6 @@ useEffect(() => {
               <div className="font-semibold text-danger">Unable to complete scan</div>
               <p className="text-sm text-muted-foreground mt-1">Please verify the following and try again:</p>
               <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
-                <li>Backend API is running at {API_BASE_URL}</li>
                 <li>Target URL is valid and reachable</li>
                 <li>Authorization was confirmed</li>
                 <li>Your network connection is active</li>
@@ -774,23 +773,4 @@ function formatEvidence(e: FeedbackCard["evidence"]): string | null {
     return null;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

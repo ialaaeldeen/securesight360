@@ -190,12 +190,12 @@ def _build_scan_row(
             "normalized_url": normalized_url,
             "domain": _extract_domain_from_url(normalized_url or target_url),
             "hostname": _extract_domain_from_url(normalized_url or target_url),
-            "target_type": "WEBSITE",
-            "scan_type": "WEBSITE_BASIC",
-            "type": "WEBSITE_BASIC",
+            "target_type": "website",
+            "scan_type": "website_basic",
+            "type": "website_basic",
             "module": "website_scanner",
-            "status": "COMPLETED",
-            "scan_status": "COMPLETED",
+            "status": "completed",
+            "scan_status": "completed",
             "security_score": score,
             "score": score,
             "risk_score": score,
@@ -348,8 +348,8 @@ def _build_website_check_row(
                     target_url,
                 )
             ),
-            "status": "COMPLETED",
-            "scan_status": "COMPLETED",
+            "status": "completed",
+            "scan_status": "completed",
             "reachable": reachable,
             "is_reachable": reachable,
             "http_status_code": _first_not_none(
@@ -791,15 +791,15 @@ def _default_value_for_required_column(
         return target_value
 
     if column_name == "target_type":
-        return "WEBSITE"
+        return "website"
 
     if column_name in {"scan_type", "type"}:
-        return "WEBSITE_BASIC"
+        return "website_basic"
 
     if column_name in {"status", "scan_status"}:
         if table_name == "findings":
-            return "OPEN"
-        return "COMPLETED"
+            return "open"
+        return "completed"
 
     if column_name in {"module", "scanner_module"}:
         return "website_scanner"
@@ -882,10 +882,10 @@ def _default_value_for_required_column(
         return "Automated safe website security checks."
 
     if column_name == "severity":
-        return "MEDIUM"
+        return "medium"
 
     if column_name == "category":
-        return "WEBSITE_SECURITY"
+        return "website_security"
 
     if column_name in {
         "is_available",
@@ -1414,4 +1414,5 @@ def _has_meaningful_value(value: Any) -> bool:
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
 
