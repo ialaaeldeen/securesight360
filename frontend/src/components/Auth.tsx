@@ -455,7 +455,7 @@ function Splash({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => vo
             </div>
 
             <h1 className="max-w-4xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-6xl lg:leading-[1.04]">
-              Professional cybersecurity assessment for
+              Cybersecurity assessment for
               <span className="bg-gradient-to-r from-cyan to-accent-blue bg-clip-text text-transparent"> websites and suspicious emails.</span>
             </h1>
 
@@ -1263,4 +1263,3 @@ function Signup({
     </AuthShell>
   );
 }
-
