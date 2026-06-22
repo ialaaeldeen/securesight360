@@ -207,21 +207,21 @@ function KpiCard({
   loading: boolean;
 }) {
   return (
-    <section className="glass rounded-2xl p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3 sm:gap-4">
-        <div>
+    <section className="glass min-w-0 rounded-3xl p-4 sm:p-5">
+      <div className="flex min-w-0 items-start justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
             {label}
           </div>
 
-          <div className={`mt-4 text-3xl font-semibold ${tone}`}>
+          <div className={`mt-4 break-words text-2xl font-semibold sm:text-3xl ${tone}`}>
             {loading ? "…" : value}
           </div>
 
           <p className="mt-3 text-sm text-muted-foreground">{helper}</p>
         </div>
 
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border bg-secondary/60">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-border bg-secondary/60">
           <Icon className={`h-5 w-5 ${tone}`} />
         </div>
       </div>
@@ -241,10 +241,10 @@ function DistributionCard({
   const total = items.reduce((sum, item) => sum + item.value, 0);
 
   return (
-    <section className="glass rounded-2xl p-4 sm:p-5">
+    <section className="glass min-w-0 rounded-3xl p-4 sm:p-5">
       <div className="mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div>
-          <h2 className="text-base font-semibold">{title}</h2>
+        <div className="min-w-0">
+          <h2 className="break-words text-base font-semibold">{title}</h2>
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
 
@@ -261,7 +261,7 @@ function DistributionCard({
             return (
               <div key={item.label} className="space-y-2">
                 <div className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                  <span className="font-medium">{item.label}</span>
+                  <span className="break-words font-medium">{item.label}</span>
                   <span className="text-muted-foreground">
                     {formatNumber(item.value)} · {percentage}%
                   </span>
@@ -284,9 +284,9 @@ function DistributionCard({
 
 function RecentWebsiteScans({ scans }: { scans: ScanRow[] }) {
   return (
-    <section className="glass rounded-2xl p-4 sm:p-5">
+    <section className="glass min-w-0 rounded-3xl p-4 sm:p-5">
       <div className="mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-base font-semibold">Recent Website Scans</h2>
           <p className="text-xs text-muted-foreground">
             Latest authorized website assessments across users.
@@ -299,35 +299,67 @@ function RecentWebsiteScans({ scans }: { scans: ScanRow[] }) {
       {scans.length === 0 ? (
         <EmptyState message="No recent website scans available yet." />
       ) : (
-        <div className="max-w-full overflow-x-auto">
-          <table className="w-full min-w-[620px] text-sm">
-            <thead className="text-xs uppercase tracking-wider text-muted-foreground">
-              <tr className="border-b border-border">
-                <th className="py-3 pr-4 text-left">Target</th>
-                <th className="py-3 pr-4 text-left">User</th>
-                <th className="py-3 pr-4 text-left">Score</th>
-                <th className="py-3 pr-4 text-left">Risk</th>
-                <th className="py-3 text-left">When</th>
-              </tr>
-            </thead>
+        <>
+          <div className="space-y-3 md:hidden">
+            {scans.slice(0, 6).map((scan, index) => (
+              <div
+                key={`${scan.id ?? index}`}
+                className="min-w-0 rounded-2xl border border-border bg-secondary/30 p-3"
+              >
+                <div className="break-all text-sm font-semibold">{targetOf(scan)}</div>
+                <div className="mt-1 break-all text-xs text-muted-foreground">
+                  {scan.user_email || scan.user_full_name || "Unknown user"}
+                </div>
 
-            <tbody>
-              {scans.slice(0, 6).map((scan, index) => (
-                <tr key={`${scan.id ?? index}`} className="border-b border-border/60 last:border-0">
-                  <td className="break-all py-3 pr-4 font-medium">{targetOf(scan)}</td>
-                  <td className="break-all py-3 pr-4 text-muted-foreground">
-                    {scan.user_email || scan.user_full_name || "—"}
-                  </td>
-                  <td className="py-3 pr-4">{formatScore(scan.security_score)}</td>
-                  <td className={`py-3 pr-4 font-medium ${riskTone(scan.risk_level)}`}>
-                    {scan.risk_level || scan.grade || scan.security_rating || "—"}
-                  </td>
-                  <td className="py-3 text-muted-foreground">{scanDate(scan)}</td>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl border border-border/70 bg-background/30 px-3 py-2">
+                    <div className="uppercase tracking-wider text-muted-foreground">Score</div>
+                    <div className="mt-1 font-semibold">{formatScore(scan.security_score)}</div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/70 bg-background/30 px-3 py-2">
+                    <div className="uppercase tracking-wider text-muted-foreground">Risk</div>
+                    <div className={`mt-1 break-words font-semibold ${riskTone(scan.risk_level)}`}>
+                      {scan.risk_level || scan.grade || scan.security_rating || "—"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 text-xs text-muted-foreground">{scanDate(scan)}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden max-w-full overflow-x-auto md:block">
+            <table className="w-full min-w-[620px] text-sm">
+              <thead className="text-xs uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-border">
+                  <th className="py-3 pr-4 text-left">Target</th>
+                  <th className="py-3 pr-4 text-left">User</th>
+                  <th className="py-3 pr-4 text-left">Score</th>
+                  <th className="py-3 pr-4 text-left">Risk</th>
+                  <th className="py-3 text-left">When</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+
+              <tbody>
+                {scans.slice(0, 6).map((scan, index) => (
+                  <tr key={`${scan.id ?? index}`} className="border-b border-border/60 last:border-0">
+                    <td className="break-all py-3 pr-4 font-medium">{targetOf(scan)}</td>
+                    <td className="break-all py-3 pr-4 text-muted-foreground">
+                      {scan.user_email || scan.user_full_name || "—"}
+                    </td>
+                    <td className="py-3 pr-4">{formatScore(scan.security_score)}</td>
+                    <td className={`py-3 pr-4 font-medium ${riskTone(scan.risk_level)}`}>
+                      {scan.risk_level || scan.grade || scan.security_rating || "—"}
+                    </td>
+                    <td className="py-3 text-muted-foreground">{scanDate(scan)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </section>
   );
@@ -335,9 +367,9 @@ function RecentWebsiteScans({ scans }: { scans: ScanRow[] }) {
 
 function RecentEmailAnalyses({ items }: { items: EmailAnalysisRow[] }) {
   return (
-    <section className="glass rounded-2xl p-4 sm:p-5">
+    <section className="glass min-w-0 rounded-3xl p-4 sm:p-5">
       <div className="mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-base font-semibold">Recent Email Analyses</h2>
           <p className="text-xs text-muted-foreground">
             Latest AI Email Threat Analyzer activity across users.
@@ -354,7 +386,7 @@ function RecentEmailAnalyses({ items }: { items: EmailAnalysisRow[] }) {
           {items.slice(0, 6).map((item, index) => (
             <div
               key={`${item.id ?? index}`}
-              className="rounded-xl border border-border bg-secondary/30 p-3 sm:p-4"
+              className="min-w-0 rounded-2xl border border-border bg-secondary/30 p-3 sm:p-4"
             >
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
@@ -371,22 +403,22 @@ function RecentEmailAnalyses({ items }: { items: EmailAnalysisRow[] }) {
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:shrink-0">
                   <span
-                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${toneForVerdict(
+                    className={`inline-flex w-full items-center justify-center rounded-2xl border px-3 py-1.5 text-center text-xs font-semibold sm:w-auto sm:rounded-full ${toneForVerdict(
                       item.verdict,
                     )}`}
                   >
                     {item.verdict || "Unknown"}
                   </span>
 
-                  <span className="break-words rounded-full border border-border bg-background/40 px-3 py-1 text-xs text-muted-foreground">
+                  <span className="break-words rounded-2xl border border-border bg-background/40 px-3 py-1.5 text-center text-xs text-muted-foreground sm:rounded-full">
                     {item.confidence || "—"} confidence
                   </span>
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground sm:gap-3">
+              <div className="mt-3 flex min-w-0 flex-wrap gap-2 text-xs text-muted-foreground sm:gap-3">
                 <span>{item.links_count ?? 0} link(s)</span>
                 <span>{item.attachments_count ?? 0} attachment(s)</span>
                 <span>Headers: {item.headers_provided ? "Provided" : "Not provided"}</span>
@@ -408,9 +440,9 @@ function ActiveUsersPanel({
   emailUsers: ActiveUserRow[];
 }) {
   return (
-    <section className="glass rounded-2xl p-4 sm:p-5">
+    <section className="glass min-w-0 rounded-3xl p-4 sm:p-5">
       <div className="mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-base font-semibold">Most Active Users</h2>
           <p className="text-xs text-muted-foreground">
             User activity across website scans and email analyses.
@@ -455,7 +487,7 @@ function UserActivityList({
   emptyText: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-secondary/30 p-3 sm:p-4">
+    <div className="min-w-0 rounded-2xl border border-border bg-secondary/30 p-3 sm:p-4">
       <div className="mb-3 text-sm font-semibold">{title}</div>
 
       {users.length === 0 ? (
@@ -466,7 +498,7 @@ function UserActivityList({
             const count = Number(user[countKey] ?? user[fallbackKey] ?? 0);
 
             return (
-              <div key={`${user.id ?? user.email ?? index}`} className="flex items-center justify-between gap-3">
+              <div key={`${user.id ?? user.email ?? index}`} className="flex min-w-0 flex-col gap-2 rounded-2xl border border-border/70 bg-background/30 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="break-words text-sm font-medium">
                     {user.full_name || user.email || "Unknown user"}
@@ -476,7 +508,7 @@ function UserActivityList({
                   </div>
                 </div>
 
-                <div className="break-words rounded-full border border-border bg-background/40 px-3 py-1 text-xs text-muted-foreground">
+                <div className="break-words rounded-2xl border border-border bg-background/40 px-3 py-1.5 text-center text-xs text-muted-foreground sm:rounded-full">
                   {formatNumber(count)}
                 </div>
               </div>
@@ -490,7 +522,7 @@ function UserActivityList({
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-border bg-secondary/30 p-4 text-sm text-muted-foreground sm:p-5">
+    <div className="rounded-2xl border border-dashed border-border bg-secondary/30 p-4 text-sm text-muted-foreground sm:p-5">
       {message}
     </div>
   );
@@ -609,14 +641,14 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
+      <header className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan/25 bg-cyan/10 px-3 py-1 text-xs font-semibold text-cyan">
             <ShieldCheck className="h-3.5 w-3.5" />
             Unified Admin Security Console
           </div>
 
-          <h1 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
+          <h1 className="mt-3 break-words text-xl font-semibold tracking-tight sm:text-2xl">
             Admin Security Overview
           </h1>
 
@@ -626,12 +658,12 @@ function AdminDashboard() {
         </div>
 
         <div className="break-words rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-muted-foreground sm:px-4">
-          Source: /api/v1/admin/dashboard/analysis
+          Live backend security analytics
         </div>
       </header>
 
       {error && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -666,10 +698,10 @@ function AdminDashboard() {
         emailUsers={mostActiveEmailUsers}
       />
 
-      <section className="glass rounded-2xl p-4 sm:p-5">
+      <section className="glass min-w-0 rounded-3xl p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <div>
-            <h2 className="text-base font-semibold">Admin Notes</h2>
+          <div className="min-w-0">
+            <h2 className="break-words text-base font-semibold">Admin Notes</h2>
             <p className="text-xs text-muted-foreground">
               Simple operational interpretation for the current admin view.
             </p>
@@ -679,21 +711,21 @@ function AdminDashboard() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-xl border border-border bg-secondary/30 p-3 sm:p-4">
+          <div className="min-w-0 rounded-2xl border border-border bg-secondary/30 p-3 sm:p-4">
             <div className="text-sm font-semibold">Website posture</div>
             <p className="mt-2 text-xs leading-5 text-muted-foreground">
               Continue using scan history and reports for full website evidence. This dashboard only summarizes activity.
             </p>
           </div>
 
-          <div className="rounded-xl border border-border bg-secondary/30 p-3 sm:p-4">
+          <div className="min-w-0 rounded-2xl border border-border bg-secondary/30 p-3 sm:p-4">
             <div className="text-sm font-semibold">Email threats</div>
             <p className="mt-2 text-xs leading-5 text-muted-foreground">
               Suspicious email verdicts help admins see phishing activity without exposing full mailbox content.
             </p>
           </div>
 
-          <div className="rounded-xl border border-border bg-secondary/30 p-3 sm:p-4">
+          <div className="min-w-0 rounded-2xl border border-border bg-secondary/30 p-3 sm:p-4">
             <div className="text-sm font-semibold">User oversight</div>
             <p className="mt-2 text-xs leading-5 text-muted-foreground">
               User management remains separate so admin actions stay controlled and auditable.

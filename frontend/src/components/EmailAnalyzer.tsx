@@ -271,10 +271,10 @@ export function EmailAnalyzer() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <section className="glass rounded-2xl p-5 sm:p-6 md:p-8">
+      <section className="glass rounded-3xl p-4 sm:p-6 md:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10 sm:h-12 sm:w-12">
               <Mail className="h-6 w-6 text-cyan" />
             </div>
 
@@ -284,7 +284,7 @@ export function EmailAnalyzer() {
                 Privacy-safe email review
               </div>
 
-              <h1 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
+              <h1 className="mt-3 break-words text-xl font-semibold tracking-tight sm:text-2xl">
                 AI Email Threat Analyzer
               </h1>
 
@@ -296,7 +296,7 @@ export function EmailAnalyzer() {
             </div>
           </div>
 
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-start">
             <SmallPill icon={Inbox}>Saved analyses: {recentCount ?? "—"}</SmallPill>
 
             <button
@@ -342,7 +342,7 @@ export function EmailAnalyzer() {
 
       {showForm && (
         <section className="grid gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
-          <div className="glass rounded-2xl p-4 sm:p-5 md:p-6">
+          <div className="glass min-w-0 rounded-3xl p-4 sm:p-5 md:p-6">
             <div className="mb-5">
               <h2 className="text-lg font-semibold">Email details</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -476,7 +476,7 @@ function OpenAnalyzerCard({ onOpen }: { onOpen: () => void }) {
       <button
         type="button"
         onClick={onOpen}
-        className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan to-accent-blue px-5 py-3 text-sm font-semibold text-[#021016] glow-cyan transition hover:brightness-110"
+        className="mt-6 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan to-accent-blue px-5 text-sm font-semibold text-[#021016] glow-cyan transition hover:brightness-110 sm:w-auto"
       >
         <FileText className="h-4 w-4" />
         Open email details form
@@ -506,7 +506,7 @@ function AttachmentBox({
           </p>
         </div>
 
-        <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-2 text-sm text-cyan transition hover:bg-cyan/15">
+        <label className="inline-flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-cyan/30 bg-cyan/10 px-4 py-2 text-sm text-cyan transition hover:bg-cyan/15 sm:w-auto">
           {readingFiles ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
@@ -546,7 +546,7 @@ function AttachmentBox({
               <button
                 type="button"
                 onClick={() => onRemove(index)}
-                className="rounded-lg border border-border bg-secondary/60 p-2 transition hover:border-danger/40 hover:text-danger"
+                className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-border bg-secondary/60 px-3 py-2 transition hover:border-danger/40 hover:text-danger sm:px-2"
                 aria-label="Remove attachment"
               >
                 <Trash2 className="h-4 w-4" />
@@ -761,8 +761,8 @@ function MLSignalCard({
   const phishingLikelihood = formatMlPercent(signal.phishing_score);
   const safeLikelihood = formatMlPercent(signal.safe_score);
   return (
-    <section className={`rounded-2xl border p-4 ${mlSignalClass(signal)}`}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <section className={`min-w-0 rounded-3xl border p-4 sm:p-5 ${mlSignalClass(signal)}`}>
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-sm font-semibold">AI threat signal</div>
           <p className="mt-1 text-xs opacity-80">
@@ -771,10 +771,10 @@ function MLSignalCard({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <span className="rounded-full border border-current/20 px-3 py-1 text-xs font-semibold">
+          <span className="inline-flex max-w-full items-center justify-center break-words rounded-full border border-current/20 px-3 py-1 text-center text-xs font-semibold">
             {signal.mapped_verdict}
           </span>
-          <span className="rounded-full border border-current/20 px-3 py-1 text-xs font-semibold">
+          <span className="inline-flex max-w-full items-center justify-center break-words rounded-full border border-current/20 px-3 py-1 text-center text-xs font-semibold">
             Strength: {signal.signal_strength}
           </span>
         </div>
@@ -816,35 +816,35 @@ function ResultPanel({
   );
 
   return (
-    <div className="glass rounded-2xl p-4 space-y-5 sm:p-5 md:p-6">
+    <div className="glass min-w-0 space-y-4 rounded-3xl p-4 sm:space-y-5 sm:p-5 md:p-6">
       <MLSignalCard signal={result.ml_email_signal} />
 
       <div className="flex flex-col gap-4">
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-start">
           <div
-            className={`inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${verdictClass(
+            className={`inline-flex w-full max-w-full items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-center text-xs font-semibold sm:w-auto sm:justify-start sm:rounded-full sm:py-1.5 ${verdictClass(
               result.verdict
             )}`}
           >
             <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-            <span className="break-words">{result.verdict}</span>
+            <span className="min-w-0 break-words">{result.verdict}</span>
           </div>
 
           <span
-            className={`inline-flex rounded-full border border-border bg-surface/70 px-3 py-1.5 text-xs font-semibold ${confidenceTone(
+            className={`inline-flex w-full items-center justify-center rounded-2xl border border-border bg-surface/70 px-3 py-2 text-center text-xs font-semibold sm:w-auto sm:rounded-full sm:py-1.5 ${confidenceTone(
               result.confidence
             )}`}
           >
             Confidence: {result.confidence}
           </span>
 
-          <span className="inline-flex rounded-full border border-border bg-surface/70 px-3 py-1.5 text-xs font-semibold text-accent-blue">
+          <span className="inline-flex w-full items-center justify-center rounded-2xl border border-border bg-surface/70 px-3 py-2 text-center text-xs font-semibold text-accent-blue sm:w-auto sm:rounded-full sm:py-1.5">
             Evidence: {result.evidence_strength}
           </span>
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold">Email threat evaluation</h2>
+          <h2 className="break-words text-lg font-semibold sm:text-xl">Email threat evaluation</h2>
 
           <div className="mt-4 rounded-2xl border border-cyan/20 bg-cyan/10 p-4">
             <div className="text-sm font-semibold text-cyan">What this means</div>
@@ -917,14 +917,14 @@ function FriendlySection({
   emptyText?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface/50 p-4 sm:p-5">
-      <div className="flex items-start gap-3">
+    <div className="min-w-0 rounded-3xl border border-border bg-surface/50 p-4 sm:p-5">
+      <div className="flex min-w-0 items-start gap-3">
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-cyan/10 text-cyan">
           <Icon className="h-4 w-4" />
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="font-semibold">{title}</div>
+          <div className="break-words font-semibold">{title}</div>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             {description}
           </p>
@@ -959,7 +959,7 @@ function EmptyResult({
   attachmentsCount: number;
 }) {
   return (
-    <div className="glass rounded-2xl p-8">
+    <div className="glass rounded-3xl p-5 sm:p-8">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-border bg-secondary">
         <FileText className="h-6 w-6 text-cyan" />
       </div>
@@ -1030,4 +1030,3 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     </label>
   );
 }
-

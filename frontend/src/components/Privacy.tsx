@@ -3,14 +3,14 @@ import { ShieldCheck, Lock, FileText, Mail, Scale, Eye, Database, Globe } from "
 export function Privacy() {
   return (
     <div className="space-y-5 sm:space-y-6">
-      <section className="relative overflow-hidden rounded-2xl border border-border">
+      <section className="relative min-w-0 overflow-hidden rounded-3xl border border-border">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0b1530] via-[#0a1226] to-[#04101c]" />
         <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-cyan/25 blur-3xl" />
-        <div className="relative p-5 sm:p-7 md:p-10">
+        <div className="relative p-4 sm:p-7 md:p-10">
           <div className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-full border border-cyan/30 bg-cyan/10 px-2.5 py-1 text-xs uppercase tracking-wider text-cyan">
             <Scale className="h-3.5 w-3.5" /> Privacy Agreements & Policies
           </div>
-          <h1 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
+          <h1 className="mt-4 break-words text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
             Your data. <span className="bg-gradient-to-r from-cyan to-accent-blue bg-clip-text text-transparent">Your control.</span>
           </h1>
           <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
@@ -27,7 +27,7 @@ export function Privacy() {
           actively blocked by the platform.
         </Card>
         <Card icon={Database} title="Data we collect">
-          Account: name, work email, company, verified company domain. Scan data: target URL, timestamps, technical
+          Account: name, email address, and company/domain details when applicable. Scan data: target URL, timestamps, technical
           findings, and generated reports. No payment data is processed by this MVP.
         </Card>
         <Card icon={Eye} title="How we use it">
@@ -35,22 +35,22 @@ export function Privacy() {
           security findings. We never sell your data.
         </Card>
         <Card icon={Lock} title="Security & retention">
-          Data is encrypted in transit and at rest. Reports are retained for the lifetime of your account and can be
-          deleted on request. MFA is required for sign-in.
+          Data is protected in transit and stored through the platform backend. Reports are retained for the lifetime of your account and can be
+          deleted on request. Additional account protection such as MFA can be added as the platform matures.
         </Card>
         <Card icon={Globe} title="Third parties">
-          We use minimal infrastructure providers strictly for hosting, email delivery, and analytics. No scan content
+          We use infrastructure providers strictly for hosting, platform operations, and service delivery. No scan content
           is shared with third parties without your consent.
         </Card>
         <Card icon={FileText} title="Your rights">
           You may request access, correction, export, or deletion of your data at any time. Reach us at
-          privacy@securesight360.app.
+          privacy@securesight360.com.
         </Card>
       </div>
 
-      <section className="glass rounded-2xl p-5 space-y-4 sm:p-6 md:p-7">
+      <section className="glass min-w-0 space-y-4 rounded-3xl p-4 sm:p-6 md:p-7">
         <div className="flex min-w-0 items-start gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan/20 to-accent-blue/10 border border-border">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10">
             <FileText className="h-5 w-5 text-cyan" />
           </div>
           <h2 className="break-words text-lg font-semibold">Acceptable use & scan authorization</h2>
@@ -64,16 +64,16 @@ export function Privacy() {
         </ol>
       </section>
 
-      <section className="glass rounded-2xl p-5 sm:p-6 md:p-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <section className="glass flex min-w-0 flex-col gap-4 rounded-3xl p-4 sm:p-6 md:p-7 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <Mail className="h-5 w-5 text-cyan" />
-          <div>
+          <div className="min-w-0">
             <div className="break-words font-medium">Questions about privacy?</div>
-            <div className="break-words text-sm text-muted-foreground">Our team replies within 2 business days.</div>
+            <div className="break-words text-sm text-muted-foreground">Contact us for privacy requests, deletion questions, and data export support.</div>
           </div>
         </div>
         <a
-          href="mailto:privacy@securesight360.app"
+          href="mailto:privacy@securesight360.com"
           className="inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan to-accent-blue px-5 py-3 text-sm font-medium text-[#021016] glow-cyan transition hover:brightness-110 sm:w-auto"
         >
           Contact privacy team
@@ -85,9 +85,9 @@ export function Privacy() {
 
 function Card({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
   return (
-    <div className="glass rounded-2xl p-4 sm:p-5">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="grid h-9 w-9 place-items-center rounded-lg bg-secondary border border-border">
+    <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
+      <div className="mb-2 flex min-w-0 items-center gap-3">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-border bg-secondary">
           <Icon className="h-4 w-4 text-cyan" />
         </div>
         <div className="break-words font-medium">{title}</div>
@@ -96,4 +96,3 @@ function Card({ icon: Icon, title, children }: { icon: any; title: string; child
     </div>
   );
 }
-

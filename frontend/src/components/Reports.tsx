@@ -545,7 +545,7 @@ export function Reports() {
         <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-cyan/20 blur-3xl" />
         <div className="absolute -bottom-24 -left-10 h-80 w-80 rounded-full bg-accent-blue/20 blur-3xl" />
 
-        <div className="relative grid gap-5 p-5 sm:p-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:p-12">
+        <div className="relative grid min-w-0 gap-5 p-4 sm:p-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:p-12">
           <div className="space-y-5">
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan/30 bg-cyan/10 px-2.5 py-1 text-xs uppercase tracking-wider text-cyan">
               <Sparkles className="h-3.5 w-3.5" />
@@ -553,7 +553,7 @@ export function Reports() {
             </div>
 
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl md:text-5xl">
+              <h1 className="break-words text-2xl font-semibold tracking-tight sm:text-3xl md:text-5xl">
                 Client-ready reports from authorized external assessment evidence.
               </h1>
 
@@ -590,15 +590,15 @@ export function Reports() {
             </div>
 
             <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5">
+              <div className="flex min-w-0 items-center gap-1.5">
                 <ShieldCheck className="h-3.5 w-3.5 text-success" />
                 Authorization-verified scope
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex min-w-0 items-center gap-1.5">
                 <Award className="h-3.5 w-3.5 text-cyan" />
                 Backend-owned evidence
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex min-w-0 items-center gap-1.5">
                 <FileText className="h-3.5 w-3.5 text-accent-blue" />
                 Official PDF endpoint
               </div>
@@ -617,27 +617,27 @@ export function Reports() {
       </section>
 
       <section className="space-y-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Generated Reports</h2>
+            <h2 className="break-words text-lg font-semibold">Generated Reports</h2>
             <p className="text-sm text-muted-foreground">
               Real reports generated from authorized external posture assessment history.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
+          <div className="flex w-full min-w-0 items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60 md:w-auto">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search report..."
-              className="w-56 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+              className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60 md:w-56"
             />
           </div>
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-warning/30 bg-warning/10 p-4 text-warning">
+          <div className="rounded-3xl border border-warning/30 bg-warning/10 p-4 text-warning">
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
               <div>
@@ -683,7 +683,7 @@ export function Reports() {
         />
       )}
 
-      <footer className="flex flex-col gap-3 rounded-2xl border border-border bg-gradient-to-r from-surface/80 to-surface-2/80 px-6 py-5 md:flex-row md:items-center md:justify-between">
+      <footer className="flex min-w-0 flex-col gap-3 rounded-3xl border border-border bg-gradient-to-r from-surface/80 to-surface-2/80 px-4 py-5 sm:px-6 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3 text-sm">
           <ShieldCheck className="h-4 w-4 text-cyan" />
           <span className="text-soft/90">
@@ -701,8 +701,8 @@ export function Reports() {
 
 function LatestReportCard({ report }: { report: ReportRecord | null }) {
   return (
-    <div className="glass rounded-2xl p-5 backdrop-blur-xl">
-      <div className="flex items-center justify-between">
+    <div className="glass min-w-0 rounded-3xl p-4 backdrop-blur-xl sm:p-5">
+      <div className="flex min-w-0 items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm">
           <FileText className="h-4 w-4 text-cyan" />
           Latest Official Report
@@ -716,7 +716,7 @@ function LatestReportCard({ report }: { report: ReportRecord | null }) {
       {report ? (
         <>
           <div className="mt-4 min-w-0">
-            <div className="truncate text-xl font-semibold">{report.domain}</div>
+            <div className="break-all text-xl font-semibold">{report.domain}</div>
             <div className="mt-1 text-xs text-muted-foreground">
               Scan #{report.id} • {formatDate(report.created_at)}
             </div>
@@ -758,10 +758,10 @@ function ReportCard({
   onDownload: () => void;
 }) {
   return (
-    <div className="glass rounded-2xl p-5">
-      <div className="flex items-start justify-between gap-3">
+    <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-secondary">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-border bg-secondary">
             <Globe className="h-4 w-4 text-cyan" />
           </div>
 
@@ -774,7 +774,7 @@ function ReportCard({
           </div>
         </div>
 
-        <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium capitalize ${levelClass(report.risk_level)}`}>
+        <span className={`inline-flex w-full items-center justify-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-center text-xs font-medium capitalize sm:w-auto ${levelClass(report.risk_level)}`}>
           {report.risk_level}
         </span>
       </div>
@@ -797,7 +797,7 @@ function ReportCard({
         <button
           type="button"
           onClick={onView}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs transition hover:border-cyan/40 hover:text-cyan"
+          className="inline-flex min-h-[42px] w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary/50 px-3 py-2 text-xs font-medium transition hover:border-cyan/40 hover:text-cyan sm:w-auto"
         >
           <Eye className="h-3.5 w-3.5" />
           View Details
@@ -910,20 +910,20 @@ function ReportDetailsPanel({
             Concise technical view from saved assessment evidence. Download the PDF for the full executive summary, evidence, scope, limitations, recommendations, and legal notice.
           </p>
 
-          <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span className="rounded-lg border border-border bg-surface/50 px-2.5 py-1">
+          <div className="mt-3 flex min-w-0 flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:flex-wrap">
+            <span className="min-w-0 rounded-xl border border-border bg-surface/50 px-2.5 py-1.5">
               Scan ID: <span className="text-soft">{report.id}</span>
             </span>
-            <span className="rounded-lg border border-border bg-surface/50 px-2.5 py-1">
+            <span className="min-w-0 rounded-xl border border-border bg-surface/50 px-2.5 py-1.5">
               Target: <span className="break-all text-soft">{report.target_url || report.domain}</span>
             </span>
-            <span className="rounded-lg border border-border bg-surface/50 px-2.5 py-1">
+            <span className="min-w-0 rounded-xl border border-border bg-surface/50 px-2.5 py-1.5">
               Date: <span className="text-soft">{formatDate(report.created_at)}</span>
             </span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
           <button
             type="button"
             onClick={onDownload}
@@ -941,7 +941,7 @@ function ReportDetailsPanel({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-xs transition hover:border-danger/40 hover:text-danger sm:w-auto"
+            className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-xs font-medium transition hover:border-danger/40 hover:text-danger sm:w-auto"
           >
             <X className="h-3.5 w-3.5" />
             Close
@@ -952,7 +952,7 @@ function ReportDetailsPanel({
       {loading ? (
         <LoadingBox text="Loading scanner evidence…" />
       ) : error ? (
-        <div className="mt-5 rounded-2xl border border-danger/30 bg-danger/10 p-4 text-danger sm:mt-6 sm:p-5">
+        <div className="mt-5 rounded-3xl border border-danger/30 bg-danger/10 p-4 text-danger sm:mt-6 sm:p-5">
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
@@ -971,7 +971,7 @@ function ReportDetailsPanel({
           </div>
 
           <div>
-            <h3 className="mb-3 text-lg font-semibold">Technical Evidence</h3>
+            <h3 className="mb-3 break-words text-lg font-semibold">Technical Evidence</h3>
 
             <div className="grid gap-4 lg:grid-cols-2">
               <EvidenceBox title="Website Availability" icon={Server} rows={availabilityRows} />
@@ -997,8 +997,8 @@ function EvidenceBox({
   rows: EvidenceRow[];
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface/50 p-5">
-      <div className="mb-4 flex items-center gap-2 font-medium">
+    <div className="min-w-0 rounded-3xl border border-border bg-surface/50 p-4 sm:p-5">
+      <div className="mb-4 flex min-w-0 items-center gap-2 font-medium">
         <Icon className="h-4 w-4 text-cyan" />
         {title}
       </div>
@@ -1014,7 +1014,7 @@ function EvidenceBox({
               key={label}
               className="flex flex-col gap-1 rounded-xl border border-border/70 bg-background/30 px-3 py-2 text-sm sm:flex-row sm:items-start sm:justify-between"
             >
-              <span className="text-muted-foreground">{label}</span>
+              <span className="break-words text-muted-foreground">{label}</span>
               <span className="whitespace-pre-wrap break-words text-left leading-relaxed text-soft sm:max-w-[64%] sm:text-right">
                 {displayValue(value, label)}
               </span>
@@ -1036,7 +1036,7 @@ function SummaryTile({
   value: string;
 }) {
   return (
-    <div className="glass rounded-2xl p-5">
+    <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -1055,18 +1055,18 @@ function SummaryTile({
 
 function MetricCard({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface/50 p-5">
+    <div className="min-w-0 rounded-3xl border border-border bg-surface/50 p-4 sm:p-5">
       <div className="text-xs uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className={`mt-2 text-2xl font-semibold ${tone}`}>{value}</div>
+      <div className={`mt-2 break-words text-2xl font-semibold ${tone}`}>{value}</div>
     </div>
   );
 }
 
 function LoadingBox({ text }: { text: string }) {
   return (
-    <div className="glass rounded-2xl p-10 text-center">
+    <div className="glass rounded-3xl p-5 text-center sm:p-10">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-border bg-secondary">
         <Loader2 className="h-6 w-6 animate-spin text-cyan" />
       </div>
@@ -1081,7 +1081,7 @@ function LoadingBox({ text }: { text: string }) {
 
 function EmptyBox() {
   return (
-    <div className="glass rounded-2xl p-10 text-center">
+    <div className="glass rounded-3xl p-5 text-center sm:p-10">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-border bg-secondary">
         <FileText className="h-6 w-6 text-cyan" />
       </div>
@@ -1096,17 +1096,11 @@ function EmptyBox() {
 
 function Mini({ v, l, tone }: { v: string; l: string; tone: string }) {
   return (
-    <div className="rounded-lg border border-border bg-surface/60 p-2.5 text-center">
-      <div className={`text-lg font-semibold ${tone}`}>{v}</div>
+    <div className="min-w-0 rounded-2xl border border-border bg-surface/60 p-2.5 text-center">
+      <div className={`break-words text-base font-semibold sm:text-lg ${tone}`}>{v}</div>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
         {l}
       </div>
     </div>
   );
 }
-
-
-
-
-
-

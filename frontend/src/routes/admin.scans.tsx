@@ -182,17 +182,17 @@ function StatCard({
   tone: string;
 }) {
   return (
-    <section className="glass rounded-2xl p-5">
-      <div className="flex items-start justify-between gap-4">
+    <section className="glass min-w-0 rounded-3xl p-4 sm:p-5">
+      <div className="flex min-w-0 items-start justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
             {label}
           </div>
-          <div className={`mt-3 text-3xl font-semibold ${tone}`}>{value}</div>
+          <div className={`mt-3 break-words text-2xl font-semibold sm:text-3xl ${tone}`}>{value}</div>
           <p className="mt-2 text-xs text-muted-foreground">{helper}</p>
         </div>
 
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border bg-secondary/60">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-border bg-secondary/60">
           <Icon className={`h-5 w-5 ${tone}`} />
         </div>
       </div>
@@ -217,7 +217,7 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm transition ${
+      className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition sm:w-auto ${
         active
           ? "border-cyan/40 bg-cyan/10 text-cyan"
           : "border-border bg-secondary/50 text-muted-foreground hover:border-cyan/30 hover:text-cyan"
@@ -313,7 +313,7 @@ function EmailTable({ emails }: { emails: AdminEmailAnalysis[] }) {
       {emails.map((item, index) => (
         <article
           key={`${item.id ?? index}`}
-          className="rounded-2xl border border-border bg-surface/50 p-4 transition hover:bg-surface/70"
+          className="min-w-0 rounded-3xl border border-border bg-surface/50 p-4 transition hover:bg-surface/70"
         >
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0">
@@ -323,7 +323,7 @@ function EmailTable({ emails }: { emails: AdminEmailAnalysis[] }) {
                 </span>
 
                 <span
-                  className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${verdictClass(
+                  className={`inline-flex rounded-2xl border px-3 py-1.5 text-xs font-semibold sm:rounded-full ${verdictClass(
                     item.verdict
                   )}`}
                 >
@@ -349,7 +349,7 @@ function EmailTable({ emails }: { emails: AdminEmailAnalysis[] }) {
               </p>
             </div>
 
-            <div className="w-full rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground xl:w-auto xl:min-w-[240px] xl:shrink-0">
+            <div className="w-full rounded-2xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground xl:w-auto xl:min-w-[240px] xl:shrink-0">
               <div className="flex items-center gap-2">
                 <Calendar className="h-3.5 w-3.5 text-cyan" />
                 {formatDate(item.created_at)}
@@ -472,10 +472,10 @@ function AdminSecurityActivityPage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <section className="glass rounded-2xl p-5 sm:p-6 md:p-8">
+      <section className="glass min-w-0 rounded-3xl p-4 sm:p-6 md:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-            <div className="grid h-12 w-12 place-items-center rounded-xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10">
               <ShieldCheck className="h-6 w-6 text-cyan" />
             </div>
 
@@ -485,7 +485,7 @@ function AdminSecurityActivityPage() {
                 Unified admin activity
               </div>
 
-              <h1 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
+              <h1 className="mt-3 break-words text-xl font-semibold tracking-tight sm:text-2xl">
                 Security Activity History
               </h1>
 
@@ -496,7 +496,7 @@ function AdminSecurityActivityPage() {
           </div>
 
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
+            <div className="flex min-h-[44px] min-w-0 items-center gap-2 rounded-2xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
                 value={query}
@@ -510,7 +510,7 @@ function AdminSecurityActivityPage() {
               type="button"
               onClick={() => loadData("refresh")}
               disabled={refreshing || loading}
-              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               Refresh
@@ -558,14 +558,14 @@ function AdminSecurityActivityPage() {
       </section>
 
       {error && (
-        <div className="rounded-2xl border border-red-800/50 bg-red-950/30 p-4 text-sm text-red-300">
+        <div className="rounded-3xl border border-red-800/50 bg-red-950/30 p-4 text-sm text-red-300">
           {error}
         </div>
       )}
 
-      <section className="glass rounded-2xl p-4 sm:p-5">
-        <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap gap-2">
+      <section className="glass min-w-0 rounded-3xl p-4 sm:p-5">
+        <div className="mb-5 flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="grid gap-2 sm:flex sm:flex-wrap">
             <TabButton
               active={tab === "website"}
               icon={Globe2}
@@ -593,7 +593,7 @@ function AdminSecurityActivityPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center gap-3 p-10 text-muted-foreground">
+          <div className="flex items-center justify-center gap-3 p-6 text-sm text-muted-foreground sm:p-10">
             <RefreshCw className="h-5 w-5 animate-spin text-cyan" />
             Loading admin security activity...
           </div>

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { API_BASE, apiFetch } from "@/lib/api";
 import { AssessmentScopeCard } from "@/components/AssessmentScopeCard";
 import {
-  Globe, ShieldCheck, Search, AlertTriangle, CheckCircle, Radar, Bug, Lock, Server, FileText, ExternalLink, Zap, BarChart3,
+  Globe, ShieldCheck, Search, AlertTriangle, CheckCircle, Radar, Bug, Lock, Server, FileText, Zap, BarChart3,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
@@ -378,14 +378,14 @@ useEffect(() => {
   return (
     <div className="space-y-5 sm:space-y-6">
       {/* Form */}
-      <form onSubmit={runScan} className="glass rounded-2xl p-5 space-y-5 sm:p-6 md:p-7">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <form onSubmit={runScan} className="glass min-w-0 space-y-4 rounded-3xl p-4 sm:space-y-5 sm:p-6 md:p-7">
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan/20 to-accent-blue/10 border border-border">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10 sm:h-11 sm:w-11">
               <Radar className="h-5 w-5 text-cyan" />
             </div>
-            <div>
-              <h2 className="text-lg font-semibold">Website Scanner</h2>
+            <div className="min-w-0">
+              <h2 className="break-words text-lg font-semibold">Website Scanner</h2>
               <p className="text-sm text-muted-foreground">
                 {verifiedDomain
                   ? <>Scoped to <span className="text-cyan font-medium">{verifiedDomain}</span> and its subdomains — Basic External Assessment.</>
@@ -407,7 +407,7 @@ useEffect(() => {
         <AssessmentScopeCard />
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-          <div>
+          <div className="min-w-0">
             <label className="text-xs uppercase tracking-wider text-muted-foreground">Target URL</label>
             <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2.5 focus-within:border-cyan/60 focus-within:ring-2 focus-within:ring-cyan/20">
               <Globe className="h-4 w-4 text-muted-foreground" />
@@ -426,7 +426,7 @@ useEffect(() => {
               </p>
             )}
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="text-xs uppercase tracking-wider text-muted-foreground">Profile</label>
             <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
               {(["basic"] as ScanProfile[]).map((p) => (
@@ -474,14 +474,14 @@ useEffect(() => {
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border border-warning/30 bg-warning/10 text-warning px-3 py-2.5 text-xs flex items-start gap-2">
+          <div className="flex min-w-0 items-start gap-2 rounded-2xl border border-warning/30 bg-warning/10 px-3 py-3 text-xs text-warning">
             <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
             <span>No company domain is registered on this account. Please sign out and complete company email verification to register your domain.</span>
           </div>
         )}
 
         {/* Authorization & privacy */}
-        <label className="flex items-start gap-3 rounded-xl border border-border bg-surface/50 p-4 cursor-pointer">
+        <label className="flex min-w-0 cursor-pointer items-start gap-3 rounded-2xl border border-border bg-surface/50 p-4">
           <input
             type="checkbox"
             checked={authorized}
@@ -511,7 +511,7 @@ useEffect(() => {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan transition disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none hover:brightness-110"
+            className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan to-accent-blue px-5 py-3 text-sm font-medium text-[#021016] glow-cyan transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none md:w-auto"
           >
             {loading ? (
               <>
@@ -537,8 +537,8 @@ useEffect(() => {
 
       {/* Loading */}
       {loading && (
-        <div className="glass rounded-2xl p-6 md:p-8">
-          <div className="flex items-center gap-4">
+        <div className="glass rounded-3xl p-5 md:p-8">
+          <div className="flex flex-col gap-4 text-center sm:flex-row sm:items-center sm:text-left">
             <div className="relative h-14 w-14">
               <div className="absolute inset-0 rounded-full border border-cyan/30" />
               <div className="absolute inset-0 rounded-full border-t-2 border-cyan animate-spin" />
@@ -546,7 +546,7 @@ useEffect(() => {
                 <Radar className="h-5 w-5 text-cyan" />
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="font-medium">Scanning website security posture...</div>
               <div className="text-sm text-muted-foreground">
                 Checking externally observable availability, HTTPS/TLS, security headers, DNS/email security, CAA, basic technology evidence, and risk score.
@@ -558,12 +558,12 @@ useEffect(() => {
 
       {/* Error */}
       {error && !loading && (
-        <div className="glass rounded-2xl p-6 border-danger/30">
+        <div className="glass rounded-3xl border-danger/30 p-5 sm:p-6">
           <div className="flex items-start gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-danger/10 border border-danger/30">
               <AlertTriangle className="h-5 w-5 text-danger" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="font-semibold text-danger">Unable to complete scan</div>
               <p className="text-sm text-muted-foreground mt-1">Please verify the following and try again:</p>
               <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
@@ -578,7 +578,7 @@ useEffect(() => {
 
       {/* Empty */}
       {!loading && !error && !data && (
-        <div className="glass rounded-2xl p-10 text-center">
+        <div className="glass rounded-3xl p-5 text-center sm:p-10">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-secondary border border-border">
             <Globe className="h-6 w-6 text-cyan" />
           </div>
@@ -592,14 +592,14 @@ useEffect(() => {
       {/* Results */}
       {data && !loading && (
         <div className="space-y-5 sm:space-y-6">
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-            <div className={`glass rounded-2xl p-5 ring-1 ${scoreRing(score)}`}>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <div className={`glass min-w-0 rounded-3xl p-4 ring-1 sm:p-5 ${scoreRing(score)}`}>
               <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5" />Security Score</div>
-              <div className={`mt-2 text-4xl font-semibold ${scoreColor(score)}`}>
+              <div className={`mt-2 break-words text-3xl font-semibold sm:text-4xl ${scoreColor(score)}`}>
                 {score ?? "—"}<span className="text-base text-muted-foreground">/100</span>
               </div>
             </div>
-            <div className="glass rounded-2xl p-4 sm:p-5">
+            <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
               <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" />Risk Level</div>
               <div className="mt-3">
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium capitalize ${riskBadge(risk)}`}>
@@ -607,13 +607,13 @@ useEffect(() => {
                 </span>
               </div>
             </div>
-            <div className="glass rounded-2xl p-4 sm:p-5">
+            <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
               <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" />Grade</div>
-              <div className="mt-2 text-4xl font-semibold text-cyan">{grade ?? "—"}</div>
+              <div className="mt-2 break-words text-3xl font-semibold text-cyan sm:text-4xl">{grade ?? "—"}</div>
             </div>
-            <div className="glass rounded-2xl p-4 sm:p-5">
+            <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
               <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><Bug className="h-3.5 w-3.5" />Findings</div>
-              <div className="mt-2 text-4xl font-semibold">{findings ?? feedback.length}</div>
+              <div className="mt-2 break-words text-3xl font-semibold sm:text-4xl">{findings ?? feedback.length}</div>
             </div>
           </div>
 
@@ -650,8 +650,8 @@ useEffect(() => {
           </div>
 
           {feedback.length > 0 && (
-            <div>
-              <div className="flex items-end justify-between mb-3">
+            <div className="min-w-0">
+              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                 <h3 className="text-lg font-semibold">Client-Friendly Feedback</h3>
                 <span className="text-xs text-muted-foreground">{feedback.length} insight{feedback.length === 1 ? "" : "s"}</span>
               </div>
@@ -663,7 +663,7 @@ useEffect(() => {
             </div>
           )}
 
-          <div className="glass rounded-2xl p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="glass flex min-w-0 flex-col gap-3 rounded-3xl p-4 sm:p-5 md:flex-row md:items-center md:justify-between">
             <div className="flex min-w-0 items-start gap-3">
               <Lock className="h-4 w-4 text-cyan" />
               <div className="text-sm text-muted-foreground">
@@ -683,7 +683,7 @@ useEffect(() => {
 
 function SummaryCard({ title, icon: Icon, text }: { title: string; icon: any; text?: string }) {
   return (
-    <div className="glass rounded-2xl p-4 sm:p-5">
+    <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
       <div className="flex items-center gap-2 text-sm font-medium">
         <Icon className="h-4 w-4 text-cyan" /> {title}
       </div>
@@ -702,7 +702,7 @@ function ListCard({
   const iconColor =
     tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : "text-danger";
   return (
-    <div className="glass rounded-2xl p-4 sm:p-5">
+    <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
       <div className="flex items-center gap-2 text-sm font-medium">
         <Icon className={`h-4 w-4 ${iconColor}`} /> {title}
       </div>
@@ -713,7 +713,7 @@ function ListCard({
           {items.map((it, i) => (
             <li key={i} className="flex items-start gap-2.5 text-sm text-soft/90">
               <span className={`mt-1.5 inline-block h-1.5 w-1.5 rounded-full ${dot}`} />
-              <span>{it}</span>
+              <span className="min-w-0 break-words">{it}</span>
             </li>
           ))}
         </ul>
@@ -727,32 +727,32 @@ function FeedbackItem({ card }: { card: FeedbackCard }) {
   const why = card.why_it_matters || card.whyItMatters;
   const evidence = formatEvidence(card.evidence);
   return (
-    <div className="glass rounded-2xl p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="font-medium">{card.title || "Untitled Check"}</div>
+    <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="break-words font-medium">{card.title || "Untitled Check"}</div>
           {card.summary && <p className="text-sm text-muted-foreground mt-1">{card.summary}</p>}
         </div>
-        <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium capitalize ${cls}`}>
+        <span className={`inline-flex w-full items-center justify-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-center text-xs font-medium capitalize sm:w-auto ${cls}`}>
           <SIcon className="h-3.5 w-3.5" />
           {(card.status || "info").replace(/_/g, " ")}
         </span>
       </div>
       <div className="mt-4 space-y-3">
         {why && (
-          <div>
+          <div className="min-w-0">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Why it matters</div>
             <p className="text-sm text-soft/90 mt-0.5">{why}</p>
           </div>
         )}
         {card.recommendation && (
-          <div>
+          <div className="min-w-0">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Recommendation</div>
             <p className="text-sm text-soft/90 mt-0.5">{card.recommendation}</p>
           </div>
         )}
         {evidence && (
-          <div>
+          <div className="min-w-0">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Evidence</div>
             <p className="text-sm text-soft/80 mt-0.5 font-mono break-words">{evidence}</p>
           </div>
@@ -773,4 +773,3 @@ function formatEvidence(e: FeedbackCard["evidence"]): string | null {
     return null;
   }
 }
-

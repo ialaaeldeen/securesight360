@@ -166,7 +166,7 @@ function StatCard({
   tone: string;
 }) {
   return (
-    <section className="glass rounded-2xl p-4 sm:p-5">
+    <section className="glass min-w-0 rounded-3xl p-4 sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -189,7 +189,7 @@ function UserIdentity({ user }: { user: AdminUser }) {
 
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-border bg-secondary">
+      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-border bg-secondary">
         {accessType === "admin" ? (
           <Crown className="h-5 w-5 text-cyan" />
         ) : accessType === "personal" ? (
@@ -217,14 +217,14 @@ function AccessTypeBadge({ user }: { user: AdminUser }) {
   return (
     <div>
       <span
-        className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${accessBadgeClass(
+        className={`inline-flex items-center rounded-2xl border px-3 py-1.5 text-xs font-semibold sm:rounded-full ${accessBadgeClass(
           type
         )}`}
       >
         {accessTypeLabel(type)}
       </span>
 
-      <div className="mt-1 text-xs text-muted-foreground">
+      <div className="mt-1 break-words text-xs text-muted-foreground">
         {accessTypeDescription(user)}
       </div>
     </div>
@@ -402,10 +402,10 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <section className="glass rounded-2xl p-5 sm:p-6 md:p-8">
+      <section className="glass min-w-0 rounded-3xl p-4 sm:p-6 md:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-            <div className="grid h-12 w-12 place-items-center rounded-xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10">
               <UserCog className="h-6 w-6 text-cyan" />
             </div>
 
@@ -415,7 +415,7 @@ export default function AdminUsersPage() {
                 Admin Access Control
               </div>
 
-              <h1 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">
+              <h1 className="mt-3 break-words text-xl font-semibold tracking-tight sm:text-2xl">
                 User & Access Management
               </h1>
 
@@ -426,7 +426,7 @@ export default function AdminUsersPage() {
           </div>
 
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
+            <div className="flex min-h-[44px] min-w-0 items-center gap-2 rounded-2xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
                 value={query}
@@ -440,7 +440,7 @@ export default function AdminUsersPage() {
               type="button"
               onClick={() => loadUsers()}
               disabled={loading}
-              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Refresh
@@ -494,7 +494,7 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <section className="glass overflow-hidden rounded-2xl">
+      <section className="glass min-w-0 overflow-hidden rounded-3xl">
         {loading ? (
           <div className="flex items-center justify-center gap-3 p-6 text-muted-foreground sm:p-10">
             <RefreshCw className="h-5 w-5 animate-spin text-cyan" />
@@ -505,141 +505,269 @@ export default function AdminUsersPage() {
             No users matched your search.
           </div>
         ) : (
-          <div className="max-w-full overflow-x-auto">
-            <table className="w-full min-w-[960px] text-left text-sm">
-              <thead className="bg-surface/70 text-xs uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="px-5 py-4">User</th>
-                  <th className="px-5 py-4">Account Type</th>
-                  <th className="px-5 py-4">Role</th>
-                  <th className="px-5 py-4">Status</th>
-                  <th className="px-5 py-4">Created</th>
-                  <th className="px-5 py-4">Last Login</th>
-                  <th className="px-5 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
+          <>
+            <div className="space-y-3 md:hidden">
+              {filteredUsers.map((user) => {
+                const saving = savingUserId === user.id;
+                const isSelf = currentUser?.id === user.id;
 
-              <tbody>
-                {filteredUsers.map((user) => {
-                  const saving = savingUserId === user.id;
-                  const isSelf = currentUser?.id === user.id;
+                return (
+                  <article
+                    key={user.id}
+                    className="min-w-0 border-t border-border/70 p-4 first:border-t-0"
+                  >
+                    <UserIdentity user={user} />
 
-                  return (
-                    <tr
-                      key={user.id}
-                      className="border-t border-border/70 transition hover:bg-surface/40"
-                    >
-                      <td className="px-5 py-4">
-                        <UserIdentity user={user} />
-                      </td>
-
-                      <td className="px-5 py-4">
+                    <div className="mt-4 grid gap-3">
+                      <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
+                        <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                          Account type
+                        </div>
                         <AccessTypeBadge user={user} />
-                      </td>
+                      </div>
 
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
+                          <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                            Role
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <span
+                              className={`inline-flex w-full items-center justify-center rounded-2xl border px-3 py-1.5 text-xs font-semibold ${
+                                String(user.role).toLowerCase() === "admin"
+                                  ? "border-cyan/30 bg-cyan/10 text-cyan"
+                                  : "border-border bg-secondary/70 text-muted-foreground"
+                              }`}
+                            >
+                              {user.role}
+                            </span>
+
+                            <select
+                              value={user.role}
+                              disabled={saving}
+                              onChange={(event) => updateRole(user, event.target.value)}
+                              className="min-h-[42px] w-full rounded-2xl border border-border bg-background/40 px-3 py-2 text-xs outline-none transition hover:border-cyan/40 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <option value="user">user</option>
+                              <option value="admin">admin</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
+                          <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                            Status
+                          </div>
                           <span
-                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
-                              String(user.role).toLowerCase() === "admin"
-                                ? "border-cyan/30 bg-cyan/10 text-cyan"
-                                : "border-border bg-secondary/70 text-muted-foreground"
-                            }`}
-                          >
-                            {user.role}
-                          </span>
-
-                          <select
-                            value={user.role}
-                            disabled={saving}
-                            onChange={(event) => updateRole(user, event.target.value)}
-                            className="min-h-[42px] rounded-xl border border-border bg-background/40 px-3 py-2 text-xs outline-none transition hover:border-cyan/40 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <option value="user">user</option>
-                            <option value="admin">admin</option>
-                          </select>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass(
-                            user.is_active
-                          )}`}
-                        >
-                          {user.is_active ? (
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                          ) : (
-                            <UserX className="h-3.5 w-3.5" />
-                          )}
-                          {user.is_active ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-
-                      <td className="break-all px-5 py-4 text-muted-foreground">
-                        {formatDate(user.created_at)}
-                      </td>
-
-                      <td className="break-all px-5 py-4 text-muted-foreground">
-                        {formatDate(user.last_login_at)}
-                      </td>
-
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex flex-wrap justify-end gap-2">
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => updateStatus(user)}
-                            className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                            className={`inline-flex w-full items-center justify-center gap-1.5 rounded-2xl border px-3 py-1.5 text-xs font-semibold ${statusBadgeClass(
                               user.is_active
-                                ? "border-red-800/50 bg-red-950/30 text-red-300 hover:bg-red-950/50"
-                                : "border-green-800/50 bg-green-950/30 text-green-300 hover:bg-green-950/50"
-                            }`}
+                            )}`}
                           >
-                            {saving ? (
-                              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                            ) : user.is_active ? (
-                              <UserX className="h-3.5 w-3.5" />
-                            ) : (
+                            {user.is_active ? (
                               <CheckCircle2 className="h-3.5 w-3.5" />
+                            ) : (
+                              <UserX className="h-3.5 w-3.5" />
                             )}
-
-                            {user.is_active ? "Deactivate" : "Activate"}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => deleteUser(user)}
-                            disabled={saving || isSelf}
-                            className="inline-flex min-h-[42px] items-center justify-center gap-1 rounded-xl border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-300 transition hover:bg-red-950/50 disabled:cursor-not-allowed disabled:opacity-40"
-                            title={
-                              isSelf
-                                ? "You cannot delete your own account"
-                                : "Delete user safely"
-                            }
-                          >
-                            <UserX className="h-3.5 w-3.5" />
-                            Delete
-                          </button>
+                            {user.is_active ? "Active" : "Inactive"}
+                          </span>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
+                          <div className="uppercase tracking-wider text-muted-foreground">Created</div>
+                          <div className="mt-1 break-words text-muted-foreground">
+                            {formatDate(user.created_at)}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
+                          <div className="uppercase tracking-wider text-muted-foreground">Last login</div>
+                          <div className="mt-1 break-words text-muted-foreground">
+                            {formatDate(user.last_login_at)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => updateStatus(user)}
+                          className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-xs transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                            user.is_active
+                              ? "border-red-800/50 bg-red-950/30 text-red-300 hover:bg-red-950/50"
+                              : "border-green-800/50 bg-green-950/30 text-green-300 hover:bg-green-950/50"
+                          }`}
+                        >
+                          {saving ? (
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                          ) : user.is_active ? (
+                            <UserX className="h-3.5 w-3.5" />
+                          ) : (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          )}
+
+                          {user.is_active ? "Deactivate" : "Activate"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteUser(user)}
+                          disabled={saving || isSelf}
+                          className="inline-flex min-h-[44px] w-full items-center justify-center gap-1 rounded-2xl border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-300 transition hover:bg-red-950/50 disabled:cursor-not-allowed disabled:opacity-40"
+                          title={
+                            isSelf
+                              ? "You cannot delete your own account"
+                              : "Delete user safely"
+                          }
+                        >
+                          <UserX className="h-3.5 w-3.5" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="hidden max-w-full overflow-x-auto md:block">
+              <table className="w-full min-w-[960px] text-left text-sm">
+                <thead className="bg-surface/70 text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-5 py-4">User</th>
+                    <th className="px-5 py-4">Account Type</th>
+                    <th className="px-5 py-4">Role</th>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4">Created</th>
+                    <th className="px-5 py-4">Last Login</th>
+                    <th className="px-5 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredUsers.map((user) => {
+                    const saving = savingUserId === user.id;
+                    const isSelf = currentUser?.id === user.id;
+
+                    return (
+                      <tr
+                        key={user.id}
+                        className="border-t border-border/70 transition hover:bg-surface/40"
+                      >
+                        <td className="px-5 py-4">
+                          <UserIdentity user={user} />
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <AccessTypeBadge user={user} />
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
+                                String(user.role).toLowerCase() === "admin"
+                                  ? "border-cyan/30 bg-cyan/10 text-cyan"
+                                  : "border-border bg-secondary/70 text-muted-foreground"
+                              }`}
+                            >
+                              {user.role}
+                            </span>
+
+                            <select
+                              value={user.role}
+                              disabled={saving}
+                              onChange={(event) => updateRole(user, event.target.value)}
+                              className="min-h-[42px] rounded-xl border border-border bg-background/40 px-3 py-2 text-xs outline-none transition hover:border-cyan/40 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <option value="user">user</option>
+                              <option value="admin">admin</option>
+                            </select>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass(
+                              user.is_active
+                            )}`}
+                          >
+                            {user.is_active ? (
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            ) : (
+                              <UserX className="h-3.5 w-3.5" />
+                            )}
+                            {user.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+
+                        <td className="break-all px-5 py-4 text-muted-foreground">
+                          {formatDate(user.created_at)}
+                        </td>
+
+                        <td className="break-all px-5 py-4 text-muted-foreground">
+                          {formatDate(user.last_login_at)}
+                        </td>
+
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <button
+                              type="button"
+                              disabled={saving}
+                              onClick={() => updateStatus(user)}
+                              className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                user.is_active
+                                  ? "border-red-800/50 bg-red-950/30 text-red-300 hover:bg-red-950/50"
+                                  : "border-green-800/50 bg-green-950/30 text-green-300 hover:bg-green-950/50"
+                              }`}
+                            >
+                              {saving ? (
+                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                              ) : user.is_active ? (
+                                <UserX className="h-3.5 w-3.5" />
+                              ) : (
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                              )}
+
+                              {user.is_active ? "Deactivate" : "Activate"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => deleteUser(user)}
+                              disabled={saving || isSelf}
+                              className="inline-flex min-h-[42px] items-center justify-center gap-1 rounded-xl border border-red-800/50 bg-red-950/30 px-3 py-2 text-xs text-red-300 transition hover:bg-red-950/50 disabled:cursor-not-allowed disabled:opacity-40"
+                              title={
+                                isSelf
+                                  ? "You cannot delete your own account"
+                                  : "Delete user safely"
+                              }
+                            >
+                              <UserX className="h-3.5 w-3.5" />
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
 
-      <section className="glass rounded-2xl p-4 sm:p-5">
-        <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-secondary">
+      <section className="glass min-w-0 rounded-3xl p-4 sm:p-5">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-border bg-secondary">
             <Shield className="h-5 w-5 text-cyan" />
           </div>
 
           <div>
-            <h2 className="font-semibold">Access model note</h2>
+            <h2 className="break-words font-semibold">Access model note</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
               Personal email accounts are intended for Email Analyzer and Email History.
               Business-domain accounts can use website scanning, reports, website history,

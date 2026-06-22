@@ -67,15 +67,15 @@ export function Settings({ onLogout }: Props) {
   return (
     <div className="space-y-5 sm:space-y-6">
       {/* Hero */}
-      <div className="glass rounded-2xl p-5 sm:p-6 lg:p-8 relative overflow-hidden">
+      <div className="glass relative min-w-0 overflow-hidden rounded-3xl p-4 sm:p-6 lg:p-8">
         <div className="absolute -top-20 -right-20 h-64 w-64 rounded-full bg-cyan/10 blur-3xl pointer-events-none" />
         <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+          <div className="min-w-0">
             <div className="text-xs uppercase tracking-wider text-cyan font-medium">Workspace Settings</div>
-            <h2 className="mt-1 text-xl font-semibold sm:text-2xl">Configure your SecureSight360 experience</h2>
+            <h2 className="mt-1 break-words text-xl font-semibold sm:text-2xl">Configure your SecureSight360 experience</h2>
             <p className="text-sm text-muted-foreground mt-1">{canUseWebsite ? "Profile, appearance, security, scanner defaults, and data controls." : "Profile, appearance, account security, email analysis preferences, and privacy controls."}</p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <button
               onClick={save}
               className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan to-accent-blue text-[#021016] px-4 py-2 text-sm font-medium glow-cyan hover:brightness-110 transition sm:w-auto"
@@ -92,9 +92,9 @@ export function Settings({ onLogout }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6">
         {/* Side tabs */}
-        <nav className="glass max-w-full overflow-x-auto rounded-2xl p-2 lg:h-fit lg:overflow-visible">
+        <nav className="glass flex max-w-full gap-2 overflow-x-auto rounded-3xl p-2 lg:h-fit lg:flex-col lg:overflow-visible">
           {tabs.filter((t) => canUseWebsite || t.id !== "scanner").map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
@@ -102,7 +102,7 @@ export function Settings({ onLogout }: Props) {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ${
+                className={`flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-sm transition-all lg:w-full lg:justify-start ${
                   active ? "bg-secondary text-foreground border border-border" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                 }`}
               >
@@ -120,7 +120,7 @@ export function Settings({ onLogout }: Props) {
               title="Registered account"
               desc={canUseWebsite ? "These details are loaded from your authenticated backend account. Your verified company domain controls which websites this account can scan." : "These details are loaded from your authenticated backend account. Personal accounts are configured for AI Email Analyzer and Email Analysis History."}
             >
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid min-w-0 gap-4 lg:grid-cols-2">
                 <ReadOnlyField label="Registrant name" icon={User} value={name} />
                 <ReadOnlyField label="Account email" icon={Mail} value={email} />
                 {canUseWebsite ? (
@@ -184,17 +184,17 @@ export function Settings({ onLogout }: Props) {
                   <div className="text-sm mt-1">{sessionTimeout} minutes</div>
                 </div>
               </Card>
-              <Card title="API access key" desc="Use this key to connect the FastAPI backend or CI pipelines.">
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <Card title="API access key" desc="API access is reserved for future workspace integrations. Keep account access protected and rotate credentials when API keys are enabled.">
+                <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                   <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-secondary px-3 py-2 font-mono text-sm">
                     <KeyRound className="h-4 w-4 text-cyan" />
-                    <span className="break-all">{showKey ? "cs360_live_8f2a91c4e6b27d59f0a1b3c8d2e4f7a9" : "•••••••••••••••••••••••••••••••••••"}</span>
+                    <span className="break-all">{showKey ? "API keys are not enabled for this workspace yet." : "•••••••••••••••••••••••••••••••••••"}</span>
                   </div>
-                  <button onClick={() => setShowKey(s => !s)} className="min-h-[42px] min-w-[42px] rounded-xl border border-border bg-secondary p-2 hover:bg-secondary/70">
+                  <button onClick={() => setShowKey(s => !s)} className="inline-flex min-h-[42px] w-full items-center justify-center rounded-xl border border-border bg-secondary p-2 hover:bg-secondary/70 sm:w-auto sm:min-w-[42px]">
                     {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <button className="mt-3 text-xs text-cyan hover:underline">Regenerate key</button>
+                <button className="mt-3 inline-flex min-h-[40px] w-full items-center justify-center rounded-xl border border-border bg-secondary/60 px-3 py-2 text-xs text-muted-foreground sm:w-auto">API key management coming soon</button>
               </Card>
             </>
           )}
@@ -204,14 +204,14 @@ export function Settings({ onLogout }: Props) {
               <div className="grid sm:grid-cols-2 gap-3">
                 <button
                   onClick={() => setDefaultProfile("basic")}
-                  className={`min-h-[92px] rounded-xl border p-4 text-left transition ${defaultProfile === "basic" ? "border-cyan bg-cyan/10" : "border-border bg-secondary hover:border-cyan/40"}`}
+                  className={`min-h-[92px] rounded-2xl border p-4 text-left transition ${defaultProfile === "basic" ? "border-cyan bg-cyan/10" : "border-border bg-secondary hover:border-cyan/40"}`}
                 >
                   <div className="break-words font-medium">Basic</div>
                   <div className="mt-1 break-words text-xs text-muted-foreground">Headers, TLS, surface checks. ~30s.</div>
                 </button>
                 <button
                   onClick={() => setDefaultProfile("advanced")}
-                  className={`min-h-[92px] rounded-xl border p-4 text-left transition ${defaultProfile === "advanced" ? "border-cyan bg-cyan/10" : "border-border bg-secondary hover:border-cyan/40"}`}
+                  className={`min-h-[92px] rounded-2xl border p-4 text-left transition ${defaultProfile === "advanced" ? "border-cyan bg-cyan/10" : "border-border bg-secondary hover:border-cyan/40"}`}
                 >
                   <div className="break-words font-medium">Advanced</div>
                   <div className="mt-1 break-words text-xs text-muted-foreground">Full risk engine + detection summary. ~2m.</div>
@@ -237,7 +237,7 @@ export function Settings({ onLogout }: Props) {
 
           {tab === "data" && (
             <>
-       <Card title="Danger zone" desc="Irreversible workspace actions." danger>
+              <Card title="Danger zone" desc="Irreversible workspace actions." danger>
                 <button className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-danger/40 bg-danger/10 text-danger px-4 py-2 text-sm hover:bg-danger/20 sm:w-auto">
                   <Trash2 className="h-4 w-4" /> {canUseWebsite ? "Delete all scan history" : "Delete all email analysis history"}
                 </button>
@@ -263,9 +263,9 @@ function organizationFromDomain(domain: string): string {
 
 function Card({ title, desc, children, danger }: { title: string; desc?: string; children: React.ReactNode; danger?: boolean }) {
   return (
-    <div className={`glass rounded-2xl p-5 lg:p-6 ${danger ? "border-danger/30" : ""}`}>
+    <div className={`glass min-w-0 rounded-3xl p-4 sm:p-5 lg:p-6 ${danger ? "border-danger/30" : ""}`}>
       <div className="mb-4">
-        <div className={`text-base font-semibold ${danger ? "text-danger" : ""}`}>{title}</div>
+        <div className={`break-words text-base font-semibold ${danger ? "text-danger" : ""}`}>{title}</div>
         {desc && <div className="text-sm text-muted-foreground mt-0.5">{desc}</div>}
       </div>
       {children}
@@ -289,9 +289,9 @@ function ReadOnlyField({ label, icon: Icon, value }: { label: string; icon: any;
   return (
     <div className="block">
       <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-      <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-border bg-secondary/60 px-3 py-2">
+      <div className="mt-1.5 flex min-w-0 items-center gap-2 rounded-xl border border-border bg-secondary/60 px-3 py-2">
         <Icon className="h-4 w-4 text-cyan" />
-        <span className={`flex-1 text-sm truncate ${value ? "" : "text-muted-foreground italic"}`}>
+        <span className={`min-w-0 flex-1 break-words text-sm ${value ? "" : "text-muted-foreground italic"}`}>
           {value || "Not provided"}
         </span>
       </div>
@@ -316,9 +316,9 @@ function SelectField({ label, icon: Icon, value, onChange, options }: { label: s
 
 function Toggle({ label, desc, checked, onChange }: { label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0 border-b border-border last:border-0">
-      <div>
-        <div className="text-sm font-medium">{label}</div>
+    <div className="flex min-w-0 items-start justify-between gap-4 border-b border-border py-3 first:pt-0 last:border-0 last:pb-0">
+      <div className="min-w-0">
+        <div className="break-words text-sm font-medium">{label}</div>
         {desc && <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>}
       </div>
       <button
@@ -336,10 +336,10 @@ function ThemeCard({ active, onClick, icon: Icon, label, desc, swatch }: { activ
   return (
     <button
       onClick={onClick}
-      className={`relative rounded-2xl border p-4 text-left transition overflow-hidden ${active ? "border-cyan bg-cyan/10" : "border-border bg-secondary hover:border-cyan/40"}`}
+      className={`relative min-w-0 overflow-hidden rounded-3xl border p-4 text-left transition ${active ? "border-cyan bg-cyan/10" : "border-border bg-secondary hover:border-cyan/40"}`}
     >
       <div className={`h-20 w-full rounded-xl bg-gradient-to-br ${swatch} border border-border mb-3`} />
-      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+      <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
         <Icon className="h-4 w-4 text-cyan" />
         <span className="break-words font-medium">{label}</span>
         {active && <Check className="h-4 w-4 text-cyan ml-auto" />}

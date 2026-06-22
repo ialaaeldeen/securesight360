@@ -345,7 +345,7 @@ function PersonalEmailDashboard({ onAnalyze }: { onAnalyze?: () => void }) {
           <button
             type="button"
             onClick={onAnalyze}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan to-accent-blue px-5 py-3 text-sm font-semibold text-[#021016] glow-cyan transition hover:brightness-110"
+            className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan to-accent-blue px-5 text-sm font-semibold text-[#021016] glow-cyan transition hover:brightness-110 sm:w-auto"
           >
             <Mail className="h-4 w-4" />
             Analyze suspicious email
@@ -570,7 +570,7 @@ function EmailThreatSummary({
           </span>
         </div>
 
-        <div className="mt-3 text-2xl font-bold leading-tight">
+        <div className="mt-3 break-words text-xl font-bold leading-tight sm:text-2xl">
           {latest.verdict}
         </div>
 
@@ -594,92 +594,149 @@ function EmailThreatSummary({
 }
 
 function RecentWebsiteScansTable({ scans }: { scans: NormalizedScan[] }) {
-  return (
-    <div className="max-w-full overflow-x-auto rounded-2xl border border-border">
-      <table className="w-full min-w-[560px] text-left text-sm">
-        <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-          <tr>
-            <th className="px-4 py-3">Target</th>
-            <th className="px-4 py-3">Score</th>
-            <th className="px-4 py-3">Risk</th>
-            <th className="px-4 py-3">Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          {!scans.length && (
-            <tr>
-              <td className="px-4 py-6 text-muted-foreground" colSpan={4}>
-                No website scan history yet.
-              </td>
-            </tr>
-          )}
+  const visibleScans = scans.slice(0, 5);
 
-          {scans.slice(0, 5).map((scan) => (
-            <tr key={scan.id} className="border-t border-border">
-              <td className="px-4 py-3 font-medium">{scan.target}</td>
-              <td className="px-4 py-3">
-                {scan.score !== null ? `${scan.score}/100` : "—"}
-              </td>
-              <td className="px-4 py-3">
-                <span className={`rounded-full px-2 py-1 text-xs font-semibold ${riskClass(scan.riskLevel)}`}>
-                  {toTitle(scan.riskLevel)}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-muted-foreground">
-                {scan.scannedAt ? formatDate(scan.scannedAt) : "—"}
-              </td>
+  if (!visibleScans.length) {
+    return <EmptyState message="No website scan history yet." />;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 md:hidden">
+        {visibleScans.map((scan) => (
+          <div key={scan.id} className="rounded-2xl border border-border bg-background/60 p-4">
+            <div className="break-words text-sm font-semibold">
+              {scan.target}
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <div className="text-muted-foreground">Score</div>
+                <div className="mt-1 font-semibold">
+                  {scan.score !== null ? `${scan.score}/100` : "—"}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Risk</div>
+                <div className="mt-1">
+                  <span className={`rounded-full px-2 py-1 text-xs font-semibold ${riskClass(scan.riskLevel)}`}>
+                    {toTitle(scan.riskLevel)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 text-xs text-muted-foreground">
+              {scan.scannedAt ? formatDate(scan.scannedAt) : "Unknown date"}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden max-w-full overflow-x-auto rounded-2xl border border-border md:block">
+        <table className="w-full min-w-[560px] text-left text-sm">
+          <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3">Target</th>
+              <th className="px-4 py-3">Score</th>
+              <th className="px-4 py-3">Risk</th>
+              <th className="px-4 py-3">Date</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {visibleScans.map((scan) => (
+              <tr key={scan.id} className="border-t border-border">
+                <td className="break-words px-4 py-3 font-medium">{scan.target}</td>
+                <td className="px-4 py-3">
+                  {scan.score !== null ? `${scan.score}/100` : "—"}
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-2 py-1 text-xs font-semibold ${riskClass(scan.riskLevel)}`}>
+                    {toTitle(scan.riskLevel)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {scan.scannedAt ? formatDate(scan.scannedAt) : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
 function RecentEmailAnalysesTable({ items }: { items: EmailThreatHistoryItem[] }) {
-  return (
-    <div className="max-w-full overflow-x-auto rounded-2xl border border-border">
-      <table className="w-full min-w-[600px] text-left text-sm">
-        <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-          <tr>
-            <th className="px-4 py-3">Subject</th>
-            <th className="px-4 py-3">Verdict</th>
-            <th className="px-4 py-3">Confidence</th>
-            <th className="px-4 py-3">Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          {!items.length && (
-            <tr>
-              <td className="px-4 py-6 text-muted-foreground" colSpan={4}>
-                No email analyses yet.
-              </td>
-            </tr>
-          )}
+  const visibleItems = items.slice(0, 5);
 
-          {items.slice(0, 5).map((item) => (
-            <tr key={item.id} className="border-t border-border align-top">
-              <td className="px-4 py-3 font-medium">
-                <div className="max-w-[260px] truncate">
-                  {item.subject_preview || "No subject provided"}
-                </div>
-                <div className="mt-1 max-w-[260px] truncate text-xs text-muted-foreground">
-                  {item.sender_preview || "No sender provided"}
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <span className={`rounded-full px-2 py-1 text-xs font-semibold ${emailVerdictClass(item)}`}>
-                  {item.verdict}
-                </span>
-              </td>
-              <td className="px-4 py-3">{item.confidence}</td>
-              <td className="px-4 py-3 text-muted-foreground">
-                {formatDate(item.created_at)}
-              </td>
+  if (!visibleItems.length) {
+    return <EmptyState message="No email analyses yet." />;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 md:hidden">
+        {visibleItems.map((item) => (
+          <div key={item.id} className="rounded-2xl border border-border bg-background/60 p-4">
+            <div className="break-words text-sm font-semibold">
+              {item.subject_preview || "No subject provided"}
+            </div>
+            <div className="mt-1 break-words text-xs text-muted-foreground">
+              {item.sender_preview || "No sender provided"}
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className={`rounded-full px-2 py-1 text-xs font-semibold ${emailVerdictClass(item)}`}>
+                {item.verdict}
+              </span>
+              <span className="rounded-full border border-border bg-card/70 px-2 py-1 text-xs text-muted-foreground">
+                {item.confidence} confidence
+              </span>
+            </div>
+
+            <div className="mt-3 text-xs text-muted-foreground">
+              {formatDate(item.created_at)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden max-w-full overflow-x-auto rounded-2xl border border-border md:block">
+        <table className="w-full min-w-[600px] text-left text-sm">
+          <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3">Subject</th>
+              <th className="px-4 py-3">Verdict</th>
+              <th className="px-4 py-3">Confidence</th>
+              <th className="px-4 py-3">Date</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {visibleItems.map((item) => (
+              <tr key={item.id} className="border-t border-border align-top">
+                <td className="px-4 py-3 font-medium">
+                  <div className="max-w-[260px] break-words">
+                    {item.subject_preview || "No subject provided"}
+                  </div>
+                  <div className="mt-1 max-w-[260px] break-words text-xs text-muted-foreground">
+                    {item.sender_preview || "No sender provided"}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-2 py-1 text-xs font-semibold ${emailVerdictClass(item)}`}>
+                    {item.verdict}
+                  </span>
+                </td>
+                <td className="px-4 py-3">{item.confidence}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {formatDate(item.created_at)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -815,22 +872,30 @@ function HeroStatusCard({
   icon: LucideIcon;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-background/70 p-4 text-sm">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-        <Icon className="h-4 w-4 text-primary" />
-        {label}
+    <div className="min-w-0 rounded-2xl border border-border bg-background/70 p-3 text-sm sm:p-4">
+      <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:text-xs">
+        <Icon className="h-4 w-4 shrink-0 text-primary" />
+        <span className="min-w-0 truncate">{label}</span>
       </div>
-      <div className="mt-2 break-words font-semibold">{title}</div>
-      <div className="mt-1 text-xs leading-5 text-muted-foreground">{description}</div>
+      <div className="mt-2 break-words text-sm font-semibold leading-5 sm:text-base">
+        {title}
+      </div>
+      <div className="mt-1 break-words text-xs leading-5 text-muted-foreground">
+        {description}
+      </div>
     </div>
   );
 }
 
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-background/60 p-4">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-2 break-words font-semibold">{value}</div>
+    <div className="min-w-0 rounded-2xl border border-border bg-background/60 p-3 sm:p-4">
+      <div className="break-words text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:text-xs">
+        {label}
+      </div>
+      <div className="mt-2 break-words text-sm font-semibold leading-5 sm:text-base">
+        {value}
+      </div>
     </div>
   );
 }
@@ -847,15 +912,25 @@ function MetricCard({
   icon: LucideIcon;
 }) {
   return (
-    <div className="rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-5">
-      <div className="rounded-2xl bg-primary/10 p-3 text-primary w-fit">
-        <Icon className="h-5 w-5" />
+    <div className="min-w-0 rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-5">
+      <div className="flex items-start gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
+          <Icon className="h-5 w-5" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="break-words text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:text-xs">
+            {label}
+          </div>
+          <div className="mt-1 break-words text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
+            {value}
+          </div>
+        </div>
       </div>
-      <div className="mt-5 text-xs uppercase tracking-wide text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-2 text-3xl font-bold tracking-tight">{value}</div>
-      <p className="mt-2 text-sm leading-5 text-muted-foreground">{description}</p>
+
+      <p className="mt-3 break-words text-sm leading-6 text-muted-foreground">
+        {description}
+      </p>
     </div>
   );
 }
@@ -872,14 +947,18 @@ function Panel({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
-      <div className="mb-5 flex items-start gap-3">
-        <div className="rounded-2xl bg-primary/10 p-3 text-primary">
+    <div className="min-w-0 rounded-3xl border border-border bg-card p-4 shadow-sm sm:p-6">
+      <div className="mb-4 flex min-w-0 items-start gap-3 sm:mb-5">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/10 text-primary">
           <Icon className="h-5 w-5" />
         </div>
-        <div>
-          <h2 className="font-semibold">{title}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+        <div className="min-w-0">
+          <h2 className="break-words text-base font-semibold leading-6 sm:text-lg">
+            {title}
+          </h2>
+          <p className="mt-1 break-words text-sm leading-6 text-muted-foreground">
+            {subtitle}
+          </p>
         </div>
       </div>
       {children}

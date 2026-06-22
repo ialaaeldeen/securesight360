@@ -176,17 +176,17 @@ function AdminAuditLogsPage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <div className="glass rounded-2xl p-5 sm:p-6 md:p-8 relative overflow-hidden">
+      <div className="glass relative min-w-0 overflow-hidden rounded-3xl p-4 sm:p-6 md:p-8">
         <div className="absolute inset-0 bg-gradient-to-r from-cyan/5 via-transparent to-accent-blue/10 pointer-events-none" />
 
-        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative flex min-w-0 flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-            <div className="grid h-12 w-12 place-items-center rounded-xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10">
               <ShieldAlert className="h-6 w-6 text-cyan" />
             </div>
 
             <div>
-              <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+              <h1 className="break-words text-xl font-semibold tracking-tight sm:text-2xl">
                 Audit Logs
               </h1>
               <p className="text-sm text-muted-foreground">
@@ -196,7 +196,7 @@ function AdminAuditLogsPage() {
           </div>
 
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
+            <div className="flex min-h-[44px] min-w-0 items-center gap-2 rounded-2xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
                 value={query}
@@ -210,7 +210,7 @@ function AdminAuditLogsPage() {
               type="button"
               onClick={() => loadLogs({ silent: true })}
               disabled={loading || refreshing}
-              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/60 px-4 py-2 text-sm transition hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               Refresh
@@ -220,37 +220,37 @@ function AdminAuditLogsPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="glass rounded-2xl p-4 sm:p-5">
+        <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
           <div className="text-sm text-muted-foreground">Total Events</div>
           <div className="mt-2 text-2xl font-bold">{stats.total}</div>
         </div>
 
-        <div className="glass rounded-2xl p-4 sm:p-5">
+        <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
           <div className="text-sm text-muted-foreground">Success</div>
           <div className="mt-2 text-2xl font-bold text-green-300">{stats.success}</div>
         </div>
 
-        <div className="glass rounded-2xl p-4 sm:p-5">
+        <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
           <div className="text-sm text-muted-foreground">Blocked</div>
           <div className="mt-2 text-2xl font-bold text-yellow-300">{stats.blocked}</div>
         </div>
 
-        <div className="glass rounded-2xl p-4 sm:p-5">
+        <div className="glass min-w-0 rounded-3xl p-4 sm:p-5">
           <div className="text-sm text-muted-foreground">Failures</div>
           <div className="mt-2 text-2xl font-bold text-red-300">{stats.failure}</div>
         </div>
       </div>
 
       {error && (
-        <div className="flex items-start gap-3 rounded-2xl border border-red-800/50 bg-red-950/40 p-4 text-red-300">
+        <div className="flex min-w-0 items-start gap-3 rounded-3xl border border-red-800/50 bg-red-950/40 p-4 text-red-300">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
           <div className="text-sm">{error}</div>
         </div>
       )}
 
-      <div className="glass rounded-2xl overflow-hidden">
+      <div className="glass min-w-0 overflow-hidden rounded-3xl">
         {loading ? (
-          <div className="flex items-center justify-center gap-3 p-6 text-muted-foreground sm:p-10">
+          <div className="flex items-center justify-center gap-3 p-6 text-sm text-muted-foreground sm:p-10">
             <Loader2 className="h-5 w-5 animate-spin text-cyan" />
             Loading audit logs...
           </div>
@@ -259,86 +259,174 @@ function AdminAuditLogsPage() {
             No audit logs found.
           </div>
         ) : (
-          <div className="max-w-full overflow-x-auto">
-            <table className="w-full min-w-[980px] text-sm">
-              <thead className="border-b border-border bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
-                <tr>
-                  <th className="px-5 py-4 text-left">Event</th>
-                  <th className="px-5 py-4 text-left">Outcome</th>
-                  <th className="px-5 py-4 text-left">Actor</th>
-                  <th className="px-5 py-4 text-left">Target</th>
-                  <th className="px-5 py-4 text-left">IP</th>
-                  <th className="px-5 py-4 text-left">Details</th>
-                  <th className="px-5 py-4 text-left">When</th>
-                </tr>
-              </thead>
+          <>
+            <div className="space-y-3 md:hidden">
+              {filteredLogs.map((log) => (
+                <article
+                  key={log.id}
+                  className="min-w-0 border-t border-border/70 p-4 first:border-t-0"
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-border bg-secondary/70">
+                      <EventIcon outcome={log.outcome || ""} />
+                    </div>
 
-              <tbody className="divide-y divide-border">
-                {filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-secondary/20">
-                    <td className="px-5 py-4">
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 grid h-8 w-8 place-items-center rounded-lg border border-border bg-secondary/70">
-                          <EventIcon outcome={log.outcome || ""} />
-                        </div>
-
-                        <div>
-                          <div className="font-medium">{eventLabel(log.event_type)}</div>
-                          <div className="break-words text-xs text-muted-foreground">
-                            {log.event_type}
-                          </div>
-                          {log.action && (
-                            <div className="mt-1 break-words text-xs text-muted-foreground">
-                              Action: {log.action}
-                            </div>
-                          )}
-                        </div>
+                    <div className="min-w-0">
+                      <div className="break-words text-sm font-semibold">
+                        {eventLabel(log.event_type)}
                       </div>
-                    </td>
+                      <div className="mt-1 break-all text-xs text-muted-foreground">
+                        {log.event_type}
+                      </div>
+                      {log.action && (
+                        <div className="mt-1 break-words text-xs text-muted-foreground">
+                          Action: {log.action}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                    <td className="px-5 py-4">
-                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${outcomeBadgeClass(log.outcome || "")}`}>
+                  <div className="mt-4 grid gap-3">
+                    <div className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-background/30 p-3">
+                      <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                        Outcome
+                      </div>
+                      <span className={`inline-flex w-full items-center justify-center rounded-2xl border px-3 py-1.5 text-xs font-semibold ${outcomeBadgeClass(log.outcome || "")}`}>
                         {log.outcome || "—"}
                       </span>
-                    </td>
+                    </div>
 
-                    <td className="px-5 py-4">
-                      <div className="font-medium">{log.actor_email || "—"}</div>
-                      <div className="break-words text-xs text-muted-foreground">
-                        {log.actor_role || "unknown role"}
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
+                        <div className="uppercase tracking-wider text-muted-foreground">Actor</div>
+                        <div className="mt-1 break-all font-medium">{log.actor_email || "—"}</div>
+                        <div className="mt-1 break-words text-muted-foreground">
+                          {log.actor_role || "unknown role"}
+                        </div>
                       </div>
-                    </td>
 
-                    <td className="px-5 py-4">
-                      <div className="font-medium">
-                        {log.target_email || log.target_resource_id || "—"}
+                      <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
+                        <div className="uppercase tracking-wider text-muted-foreground">Target</div>
+                        <div className="mt-1 break-all font-medium">
+                          {log.target_email || log.target_resource_id || "—"}
+                        </div>
+                        <div className="mt-1 break-words text-muted-foreground">
+                          {log.target_resource_type || "—"}
+                        </div>
                       </div>
-                      <div className="break-words text-xs text-muted-foreground">
-                        {log.target_resource_type || "—"}
+                    </div>
+
+                    <div className="grid gap-3 text-xs sm:grid-cols-2">
+                      <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
+                        <div className="uppercase tracking-wider text-muted-foreground">IP address</div>
+                        <div className="mt-1 break-all text-muted-foreground">
+                          {log.ip_address || "—"}
+                        </div>
                       </div>
-                    </td>
 
-                    <td className="break-all px-5 py-4 text-muted-foreground">
-                      {log.ip_address || "—"}
-                    </td>
+                      <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
+                        <div className="uppercase tracking-wider text-muted-foreground">When</div>
+                        <div className="mt-1 inline-flex items-center gap-1.5 break-words text-muted-foreground">
+                          <Clock className="h-3.5 w-3.5 shrink-0" />
+                          {formatDate(log.created_at)}
+                        </div>
+                      </div>
+                    </div>
 
-                    <td className="px-5 py-4">
-                      <code className="block max-w-[260px] break-all rounded-lg border border-border bg-black/20 px-2 py-1 text-xs text-muted-foreground">
+                    <div className="rounded-2xl border border-border/70 bg-background/30 p-3">
+                      <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                        Details
+                      </div>
+                      <code className="block max-h-28 overflow-y-auto break-all rounded-2xl border border-border bg-black/20 px-3 py-2 text-xs text-muted-foreground">
                         {detailsPreview(log.details)}
                       </code>
-                    </td>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
 
-                    <td className="break-all px-5 py-4 text-muted-foreground">
-                      <span className="inline-flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5" />
-                        {formatDate(log.created_at)}
-                      </span>
-                    </td>
+            <div className="hidden max-w-full overflow-x-auto md:block">
+              <table className="w-full min-w-[980px] text-sm">
+                <thead className="border-b border-border bg-secondary/40 text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-5 py-4 text-left">Event</th>
+                    <th className="px-5 py-4 text-left">Outcome</th>
+                    <th className="px-5 py-4 text-left">Actor</th>
+                    <th className="px-5 py-4 text-left">Target</th>
+                    <th className="px-5 py-4 text-left">IP</th>
+                    <th className="px-5 py-4 text-left">Details</th>
+                    <th className="px-5 py-4 text-left">When</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+
+                <tbody className="divide-y divide-border">
+                  {filteredLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-secondary/20">
+                      <td className="px-5 py-4">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-2xl border border-border bg-secondary/70">
+                            <EventIcon outcome={log.outcome || ""} />
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="break-words font-medium">{eventLabel(log.event_type)}</div>
+                            <div className="break-words text-xs text-muted-foreground">
+                              {log.event_type}
+                            </div>
+                            {log.action && (
+                              <div className="mt-1 break-words text-xs text-muted-foreground">
+                                Action: {log.action}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${outcomeBadgeClass(log.outcome || "")}`}>
+                          {log.outcome || "—"}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="font-medium">{log.actor_email || "—"}</div>
+                        <div className="break-words text-xs text-muted-foreground">
+                          {log.actor_role || "unknown role"}
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="font-medium">
+                          {log.target_email || log.target_resource_id || "—"}
+                        </div>
+                        <div className="break-words text-xs text-muted-foreground">
+                          {log.target_resource_type || "—"}
+                        </div>
+                      </td>
+
+                      <td className="break-all px-5 py-4 text-muted-foreground">
+                        {log.ip_address || "—"}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <code className="block max-w-[260px] break-all rounded-lg border border-border bg-black/20 px-2 py-1 text-xs text-muted-foreground">
+                          {detailsPreview(log.details)}
+                        </code>
+                      </td>
+
+                      <td className="break-all px-5 py-4 text-muted-foreground">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5" />
+                          {formatDate(log.created_at)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

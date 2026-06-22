@@ -62,20 +62,20 @@ function AdminLayout() {
     return (
       <Link
         to={to}
-        className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition ${
+        className={`flex min-h-[42px] shrink-0 items-center gap-2 rounded-2xl px-3 py-2 text-sm font-medium transition sm:gap-3 lg:w-full ${
           active
             ? "bg-secondary text-foreground border border-border"
             : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
         }`}
       >
-        <Icon className={`h-4 w-4 ${active ? "text-cyan" : ""}`} />
+        <Icon className={`h-4 w-4 shrink-0 ${active ? "text-cyan" : ""}`} />
         {label}
       </Link>
     );
   };
 
   return (
-    <div className="min-h-dvh w-full overflow-x-hidden lg:h-dvh lg:overflow-hidden">
+    <div className="min-h-dvh w-full overflow-x-hidden lg:flex lg:h-dvh lg:overflow-hidden">
       <aside className="glass hidden h-dvh w-64 shrink-0 flex-col border-r border-border/70 lg:flex">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border/70">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-cyan to-accent-blue glow-cyan">

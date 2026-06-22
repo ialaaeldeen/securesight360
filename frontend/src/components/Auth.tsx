@@ -369,39 +369,50 @@ function SiteFooter({ onHome, onLogin, onSignup }: { onHome: () => void; onLogin
 }
 
 function TopBar({ onLogin, onSignup, onHome }: { onLogin: () => void; onSignup: () => void; onHome: () => void }) {
-  const navItem = "relative text-sm font-medium text-foreground/80 hover:text-cyan transition";
-  const divider = <span className="text-border/60 select-none">|</span>;
+  const navItem = "text-sm font-medium text-foreground/80 hover:text-cyan transition";
+
   return (
-    <div className="rounded-2xl border border-border bg-surface/70 backdrop-blur-xl px-3 py-3 sm:px-4 md:px-6 flex items-center justify-between gap-3 overflow-hidden">
-      <button onClick={onHome} className="flex items-center gap-3 shrink-0">
-        <img src={cs360Logo} alt="SecureSight360 logo" width={40} height={40} className="h-10 w-10 object-contain" />
-        <div className="text-left leading-tight">
-          <div className="text-base font-semibold tracking-tight sm:text-lg">
-            SecureSight<span className="text-cyan">360</span>
+    <div className="rounded-3xl border border-border bg-surface/80 px-3 py-3 shadow-xl shadow-black/10 backdrop-blur-xl sm:px-4 md:px-6">
+      <div className="flex items-center justify-between gap-3">
+        <button onClick={onHome} className="flex min-w-0 items-center gap-3 text-left">
+          <img
+            src={cs360Logo}
+            alt="SecureSight360 logo"
+            width={44}
+            height={44}
+            className="h-11 w-11 shrink-0 object-contain"
+          />
+          <div className="min-w-0 leading-tight">
+            <div className="truncate text-base font-semibold tracking-tight sm:text-lg">
+              SecureSight<span className="text-cyan">360</span>
+            </div>
+            <div className="truncate text-[11px] font-medium text-muted-foreground sm:text-xs">
+              Cybersecurity assessment platform
+            </div>
           </div>
-          <div className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-            Smart · Reliable · Future-Ready Security
-          </div>
+        </button>
+
+        <nav className="hidden items-center gap-5 md:flex">
+          <button onClick={onHome} className={`${navItem} text-cyan`}>Home</button>
+          <button onClick={onHome} className={navItem}>About</button>
+          <button onClick={() => document.getElementById("services")?.scrollIntoView({ behavior: "smooth", block: "start" })} className={navItem}>Services</button>
+          <button onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth", block: "start" })} className={navItem}>Contact</button>
+        </nav>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={onLogin}
+            className="inline-flex min-h-[42px] items-center justify-center rounded-2xl border border-border bg-secondary/60 px-3 text-sm font-medium transition hover:bg-secondary sm:px-4"
+          >
+            Sign in
+          </button>
+          <button
+            onClick={onSignup}
+            className="hidden min-h-[42px] items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-cyan to-accent-blue px-4 text-sm font-semibold text-[#021016] glow-cyan transition hover:brightness-110 sm:inline-flex"
+          >
+            Get started <ArrowRight className="h-4 w-4" />
+          </button>
         </div>
-      </button>
-
-      <nav className="hidden md:flex items-center gap-5">
-        <button onClick={onHome} className={`${navItem} text-cyan after:absolute after:left-0 after:right-0 after:-bottom-1.5 after:h-[2px] after:bg-cyan after:rounded-full`}>Home</button>
-        {divider}
-        <button onClick={onHome} className={navItem}>About Us</button>
-        {divider}
-        <button onClick={onHome} className={`${navItem} inline-flex items-center gap-1`}>
-          Services <ChevronDown className="h-3.5 w-3.5" />
-        </button>
-        {divider}
-        <button onClick={() => { onHome(); requestAnimationFrame(() => setTimeout(() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80)); }} className={navItem}>Contact Us</button>
-      </nav>
-
-      <div className="flex items-center gap-2 shrink-0">
-        <button onClick={onLogin} className="hidden sm:inline-flex rounded-xl border border-border bg-secondary/50 px-4 py-2 text-sm hover:bg-secondary transition">Sign in</button>
-        <button onClick={onSignup} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan to-accent-blue px-4 py-2.5 text-sm font-semibold text-[#021016] glow-cyan hover:brightness-110 transition sm:px-5">
-          Get Started <ArrowRight className="h-4 w-4" />
-        </button>
       </div>
     </div>
   );
@@ -410,7 +421,7 @@ function TopBar({ onLogin, onSignup, onHome }: { onLogin: () => void; onSignup: 
 function Splash({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
   const services = [
     { i: Globe, t: "Website Security Posture Assessment", d: "Authorized external checks for SSL/TLS, security headers, DNS posture, and email authentication records across verified business domains." },
-    { i: Mail, t: "AI Email Threat Analyzer", d: "Coming soon: AI-assisted phishing review for suspicious emails, sender details, links, and optional headers using professional verdicts instead of numeric scores." },
+    { i: Mail, t: "AI Email Threat Analyzer", d: "AI-assisted phishing review for suspicious emails, sender details, links, and optional headers using professional verdicts instead of numeric scores." },
     { i: FileText, t: "Security Reports and Evidence", d: "Executive summaries, technical evidence, priority actions, and client-ready PDF reports for authorized website assessments." },
     { i: Sparkles, t: "Browser Extension / Email Add-on Roadmap", d: "Future Gmail, Outlook, and browser-assisted workflows for user-controlled suspicious email submission and review." },
     { i: Lock, t: "Authorized-Only Website Checks", d: "Website assessment remains safe, read-only, and limited to verified business domains owned or authorized by the user." },
@@ -434,47 +445,93 @@ function Splash({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => vo
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
-    <div className="w-full space-y-24 scroll-mt-24">
+    <div className="w-full space-y-14 scroll-mt-24 sm:space-y-18 lg:space-y-24">
       {/* HERO — Cyber Security & IT Solutions */}
-      <section id="home" className="scroll-mt-24 max-w-4xl space-y-8 sm:space-y-10">
-        <div className="space-y-6">
-          <div className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-cyan border border-cyan/30 bg-cyan/10 px-3 py-1.5 rounded-full">
-            <Sparkles className="h-3.5 w-3.5" /> Get Started
+      <section id="home" className="scroll-mt-24">
+        <div className="grid items-center gap-8 rounded-[2rem] border border-border bg-gradient-to-br from-surface/90 via-surface/60 to-background/60 p-5 shadow-2xl shadow-black/10 sm:p-7 lg:grid-cols-[1.05fr_0.95fr] lg:p-10">
+          <div className="space-y-5">
+            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan sm:text-xs">
+              <Sparkles className="h-3.5 w-3.5 shrink-0" /> Production-ready security workspace
+            </div>
+
+            <h1 className="max-w-4xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-6xl lg:leading-[1.04]">
+              Professional cybersecurity assessment for
+              <span className="bg-gradient-to-r from-cyan to-accent-blue bg-clip-text text-transparent"> websites and suspicious emails.</span>
+            </h1>
+
+            <div id="about" className="scroll-mt-24 max-w-3xl">
+              <p className="text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+                <span className="font-semibold text-foreground">SecureSight360</span> helps personal and business users assess digital risk with authorized website security posture checks, evidence-backed reports, and AI-assisted email threat analysis.
+              </p>
+            </div>
+
+            <div className="grid gap-3 pt-1 sm:flex sm:flex-wrap">
+              <button
+                onClick={onSignup}
+                className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan to-accent-blue px-6 text-sm font-semibold text-[#021016] glow-cyan transition hover:brightness-110 sm:w-auto"
+              >
+                Get started <ArrowRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={onLogin}
+                className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/60 px-6 text-sm font-medium transition hover:bg-secondary sm:w-auto"
+              >
+                <Lock className="h-4 w-4" /> Sign in to console
+              </button>
+            </div>
+
+            <div className="grid gap-3 pt-2 text-xs text-muted-foreground sm:grid-cols-3">
+              <div className="rounded-2xl border border-border bg-background/35 px-3 py-3">
+                <div className="font-semibold text-foreground">Authorized</div>
+                <div className="mt-1 leading-5">Website checks stay limited to verified business domains.</div>
+              </div>
+              <div className="rounded-2xl border border-border bg-background/35 px-3 py-3">
+                <div className="font-semibold text-foreground">Evidence-backed</div>
+                <div className="mt-1 leading-5">Reports explain findings, impact, and next actions.</div>
+              </div>
+              <div className="rounded-2xl border border-border bg-background/35 px-3 py-3">
+                <div className="font-semibold text-foreground">Email-ready</div>
+                <div className="mt-1 leading-5">Analyze suspicious messages without opening risky content.</div>
+              </div>
+            </div>
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight leading-[1.08] sm:text-4xl md:text-6xl md:leading-[1.05]">
-            Cyber Security & IT <br />
-            Solutions for Your <br />
-            <span className="bg-gradient-to-r from-cyan to-accent-blue bg-clip-text text-transparent">Company</span>
-          </h1>
-          <div id="about" className="scroll-mt-24 max-w-3xl">
-            <p className="text-base leading-relaxed text-muted-foreground sm:text-lg">
-              <span className="text-foreground font-semibold">SecureSight360</span> is evolving into a professional cybersecurity platform for authorized website security posture assessment, evidence-backed reporting, and planned AI-assisted suspicious email analysis. Website assessment remains domain-authorized and should not be described as a full penetration test or full vulnerability assessment.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <button onClick={() => document.getElementById("contact")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-[#021016] bg-gradient-to-r from-cyan to-accent-blue glow-cyan hover:brightness-110 transition sm:w-auto">
-              Contact Us <ArrowRight className="h-4 w-4" />
-            </button>
-            <button onClick={onLogin} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/50 px-6 py-3 text-sm hover:bg-secondary transition sm:w-auto">
-              <Lock className="h-4 w-4" /> Sign in to console
-            </button>
+
+          <div className="relative overflow-hidden rounded-[1.75rem] border border-cyan/20 bg-background/45 p-5">
+            <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-cyan/20 blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-accent-blue/15 blur-3xl" />
+
+            <div className="relative space-y-3">
+              {[
+                ["Website posture", "SSL/TLS, DNS, headers, email authentication"],
+                ["Email threat analysis", "Phishing, impersonation, BEC, suspicious links"],
+                ["Client-ready reports", "Executive summaries and technical evidence"],
+              ].map(([title, text]) => (
+                <div key={title} className="rounded-2xl border border-border bg-surface/70 p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-cyan" />
+                    {title}
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* SERVICES — card grid */}
       <section id="services" className="scroll-mt-24">
-        <div data-reveal className="flex flex-col items-center text-center mb-12">
+        <div data-reveal className="mb-8 flex flex-col items-center text-center sm:mb-10">
           <div className="inline-flex items-center gap-2 rounded-full bg-surface/80 border border-border px-5 py-1.5 text-sm">Services</div>
-          <h2 className="mt-6 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">Our Core Services</h2>
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:mt-5 sm:text-3xl md:text-4xl">Our Core Services</h2>
         </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((s, idx) => (
-            <div key={idx} data-reveal data-reveal-delay={idx * 100} className="group rounded-2xl border border-border bg-surface/60 p-7 hover:border-cyan/40 hover:bg-surface/80 hover:-translate-y-1 transition-all duration-300">
-              <div className="grid h-14 w-14 place-items-center rounded-full bg-cyan/10 border border-cyan/20 mb-6 group-hover:scale-110 group-hover:bg-cyan/20 transition-all duration-300">
+            <div key={idx} data-reveal data-reveal-delay={idx * 100} className="group rounded-2xl border border-border bg-surface/60 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-cyan/40 hover:bg-surface/80 sm:p-6">
+              <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl border border-cyan/20 bg-cyan/10 transition-all duration-300 group-hover:scale-105 group-hover:bg-cyan/20 sm:mb-5">
                 <s.i className="h-6 w-6 text-cyan" />
               </div>
-              <h3 className="text-xl font-semibold leading-tight mb-3">{s.t}</h3>
+              <h3 className="mb-2 text-lg font-semibold leading-tight sm:text-xl">{s.t}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{s.d}</p>
               <button onClick={onSignup} className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-cyan hover:gap-2.5 transition-all">
                 Learn More <ArrowRight className="h-4 w-4" />
@@ -1206,6 +1263,4 @@ function Signup({
     </AuthShell>
   );
 }
-
-
 

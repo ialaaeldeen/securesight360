@@ -401,24 +401,24 @@ function WebsiteHistoryContent() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <div className="glass rounded-2xl p-5 sm:p-6 md:p-8 relative overflow-hidden">
+      <div className="glass relative overflow-hidden rounded-3xl p-4 sm:p-6 md:p-8">
         <div className="absolute inset-0 bg-gradient-to-r from-cyan/5 via-transparent to-accent-blue/10 pointer-events-none" />
 
         <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-cyan/20 to-accent-blue/10 border border-border">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-border bg-gradient-to-br from-cyan/20 to-accent-blue/10 sm:h-12 sm:w-12">
               <HistoryIcon className="h-6 w-6 text-cyan" />
             </div>
 
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Scan History</h1>
+              <h1 className="break-words text-xl font-semibold tracking-tight sm:text-2xl">Website Assessment History</h1>
               <p className="text-sm text-muted-foreground">
-                Backend-owned history for authorized external posture assessments.
+                Review authorized website scans, scores, risk levels, and saved technical evidence.
               </p>
             </div>
           </div>
 
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
             <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 focus-within:border-cyan/60">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
@@ -445,7 +445,7 @@ function WebsiteHistoryContent() {
       <AssessmentScopeCard compact />
 
       {error && (
-        <div className="rounded-2xl border border-warning/30 bg-warning/10 p-4 text-warning flex items-start gap-3">
+        <div className="flex min-w-0 items-start gap-3 rounded-3xl border border-warning/30 bg-warning/10 p-4 text-warning">
           <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
           <div>
             <div className="font-medium">Could not load scan history</div>
@@ -463,17 +463,17 @@ function WebsiteHistoryContent() {
           {filtered.map((r) => (
             <div
               key={r.id}
-              className="glass rounded-2xl p-4 sm:p-5 flex flex-col gap-4 xl:flex-row xl:items-center"
+              className="glass flex min-w-0 flex-col gap-4 rounded-3xl p-4 sm:p-5 xl:flex-row xl:items-center"
             >
               <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-secondary border border-border">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-border bg-secondary sm:h-11 sm:w-11">
                   <Globe className="h-5 w-5 text-cyan" />
                 </div>
 
                 <div className="min-w-0">
                   <div className="break-all font-semibold">{r.domain}</div>
 
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                  <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Calendar className="h-3.5 w-3.5" />
                     {formatDate(r.created_at)}
                   </div>
@@ -487,8 +487,8 @@ function WebsiteHistoryContent() {
                 <Mini v="Basic External" l="Assessment" tone="text-accent-blue" />
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${riskBadgeClass(r.risk_level)}`}>
+              <div className="flex w-full shrink-0 flex-col gap-2 sm:flex-row sm:items-center xl:w-auto">
+                <span className={`inline-flex w-full items-center justify-center gap-1.5 rounded-2xl border px-3 py-2 text-center text-xs font-semibold sm:w-auto sm:rounded-full sm:py-1.5 ${riskBadgeClass(r.risk_level)}`}>
                   <ShieldCheck className="h-3.5 w-3.5" />
                   {r.risk_level}
                 </span>
@@ -496,7 +496,7 @@ function WebsiteHistoryContent() {
                 <button
                   type="button"
                   onClick={() => viewDetails(r)}
-                  className="inline-flex min-h-[42px] items-center justify-center gap-1.5 rounded-xl border border-cyan/30 bg-cyan/10 px-3 py-2 text-xs text-cyan hover:bg-cyan/15 transition"
+                  className="inline-flex min-h-[42px] w-full items-center justify-center gap-1.5 rounded-xl border border-cyan/30 bg-cyan/10 px-3 py-2 text-xs font-medium text-cyan transition hover:bg-cyan/15 sm:w-auto"
                 >
                   <Eye className="h-3.5 w-3.5" />
                   View Details
@@ -528,11 +528,11 @@ export function History() {
   const [activeTab, setActiveTab] = useState<"email" | "website">("email");
 
   const tabBase =
-    "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all";
+    "inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-medium transition-all sm:w-auto";
 
   return (
     <div className="space-y-5">
-      <div className="glass rounded-2xl p-2 flex flex-col gap-2 sm:flex-row">
+      <div className="glass flex flex-col gap-2 rounded-3xl p-2 sm:flex-row">
         <button
           type="button"
           onClick={() => setActiveTab("email")}
@@ -644,20 +644,20 @@ function HistoryDetailsPanel({
             Assessment Evidence View
           </div>
 
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight">{record.domain}</h2>
+          <h2 className="mt-3 break-all text-xl font-semibold tracking-tight sm:text-2xl">{record.domain}</h2>
 
           <p className="mt-1 text-sm text-muted-foreground">
             Concise technical view from saved backend evidence.
           </p>
 
-          <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span className="rounded-lg border border-border bg-surface/50 px-2.5 py-1">
+          <div className="mt-3 flex min-w-0 flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:flex-wrap">
+            <span className="min-w-0 rounded-xl border border-border bg-surface/50 px-2.5 py-1.5">
               Scan ID: <span className="text-soft">{record.id}</span>
             </span>
-            <span className="rounded-lg border border-border bg-surface/50 px-2.5 py-1">
+            <span className="min-w-0 rounded-xl border border-border bg-surface/50 px-2.5 py-1.5">
               Target: <span className="break-all text-soft">{record.target_url || record.domain}</span>
             </span>
-            <span className="rounded-lg border border-border bg-surface/50 px-2.5 py-1">
+            <span className="min-w-0 rounded-xl border border-border bg-surface/50 px-2.5 py-1.5">
               Date: <span className="text-soft">{formatDate(record.created_at)}</span>
             </span>
           </div>
@@ -666,20 +666,19 @@ function HistoryDetailsPanel({
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-xs transition hover:border-danger/40 hover:text-danger"
+          className="inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/60 px-4 py-2 text-xs font-medium transition hover:border-danger/40 hover:text-danger md:w-auto"
         >
           <X className="h-3.5 w-3.5" />
           Close
         </button>
       </div>
 
-      
       <AssessmentScopeCard compact className="mt-5" />
 
       {loading ? (
         <LoadingBox text="Loading scanner evidence…" />
       ) : error ? (
-        <div className="mt-6 rounded-2xl border border-danger/30 bg-danger/10 p-5 text-danger">
+        <div className="mt-6 rounded-3xl border border-danger/30 bg-danger/10 p-4 text-danger sm:p-5">
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
             <div>
@@ -698,7 +697,7 @@ function HistoryDetailsPanel({
           </div>
 
           <div>
-            <h3 className="mb-3 text-lg font-semibold">Technical Evidence</h3>
+            <h3 className="mb-3 break-words text-lg font-semibold">Technical Evidence</h3>
 
             <div className="grid gap-4 lg:grid-cols-2">
               <EvidenceBox title="Website Availability" icon={Server} rows={availabilityRows} />
@@ -724,8 +723,8 @@ function EvidenceBox({
   rows: EvidenceRow[];
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface/50 p-4 sm:p-5">
-      <div className="mb-4 flex items-center gap-2 font-medium">
+    <div className="min-w-0 rounded-3xl border border-border bg-surface/50 p-4 sm:p-5">
+      <div className="mb-4 flex min-w-0 items-center gap-2 font-medium">
         <Icon className="h-4 w-4 text-cyan" />
         {title}
       </div>
@@ -741,7 +740,7 @@ function EvidenceBox({
               key={label}
               className="flex flex-col gap-1 rounded-xl border border-border/70 bg-background/30 px-3 py-2 text-sm sm:flex-row sm:items-start sm:justify-between"
             >
-              <span className="text-muted-foreground">{label}</span>
+              <span className="break-words text-muted-foreground">{label}</span>
               <span className="whitespace-pre-wrap break-words text-left leading-relaxed text-soft sm:max-w-[64%] sm:text-right">
                 {displayValue(value, label)}
               </span>
@@ -755,16 +754,16 @@ function EvidenceBox({
 
 function MetricCard({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface/50 p-4 sm:p-5">
+    <div className="min-w-0 rounded-3xl border border-border bg-surface/50 p-4 sm:p-5">
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={`mt-2 text-2xl font-semibold ${tone}`}>{value}</div>
+      <div className={`mt-2 break-words text-2xl font-semibold ${tone}`}>{value}</div>
     </div>
   );
 }
 
 function LoadingBox({ text }: { text: string }) {
   return (
-    <div className="glass rounded-2xl p-6 text-center sm:p-10">
+    <div className="glass rounded-3xl p-5 text-center sm:p-10">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-secondary border border-border">
         <Loader2 className="h-6 w-6 text-cyan animate-spin" />
       </div>
@@ -780,7 +779,7 @@ function LoadingBox({ text }: { text: string }) {
 
 function EmptyHistory() {
   return (
-    <div className="glass rounded-2xl p-6 text-center sm:p-10">
+    <div className="glass rounded-3xl p-5 text-center sm:p-10">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-secondary border border-border">
         <HistoryIcon className="h-6 w-6 text-cyan" />
       </div>
@@ -796,13 +795,9 @@ function EmptyHistory() {
 
 function Mini({ v, l, tone }: { v: string; l: string; tone: string }) {
   return (
-    <div className="rounded-xl border border-border bg-surface/60 px-4 py-3 text-center">
-      <div className={`text-lg font-bold ${tone}`}>{v}</div>
+    <div className="min-w-0 rounded-2xl border border-border bg-surface/60 px-3 py-3 text-center sm:px-4">
+      <div className={`break-words text-base font-bold sm:text-lg ${tone}`}>{v}</div>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{l}</div>
     </div>
   );
 }
-
-
-
-
